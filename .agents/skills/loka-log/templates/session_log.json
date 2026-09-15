@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.1",
+  "template": true,
+  "timestamp": "ISO8601 with timezone offset",
+  "session_id": "session_YYYY-MM-DD__HH-MM",
+  "conversation_id": "UUID string",
+  "agent": "Agent",
+  "intent": "Confirmed user intent",
+
+  "scope": {
+    "target": "Relative path or named target"
+  },
+
+  "actions": [
+    {
+      "action": "READ | WRITE | RUN | DELETE | MOVE | SSH",
+      "files": ["Array of paths"],
+      "outcome": "SUCCESS | FAILURE | PARTIAL",
+      "evidence": "Concise observed result"
+    }
+  ],
+
+  "decisions": [
+    {
+      "decision": "Decision made or confirmed in this session",
+      "basis": "Evidence or explicit user statement",
+      "binding_at_session_end": true
+    }
+  ],
+
+  "approvals": [
+    {
+      "approval": "Explicit user approval",
+      "scope": "Approved action or boundary"
+    }
+  ],
+
+  "artifacts": {
+    "created": [],
+    "modified": [],
+    "removed": []
+  },
+
+  "workspace_state": {
+    "observed_at": "ISO8601 with timezone offset",
+    "git_status": "Observed git status summary"
+  },
+
+  "governance_audit": {
+    "violations": []
+  },
+
+  "risks_or_errors": [],
+
+  "followups": [
+    {
+      "task": "String",
+      "status": "OPEN | BLOCKED",
+      "basis": "Confirmed reason this remains"
+    }
+  ]
+}

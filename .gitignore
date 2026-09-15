@@ -1,0 +1,51 @@
+# Secrets, credentials and environment variables
+.env
+*.env
+*.env.*
+*.key
+*.pem
+*.secret
+credentials.json
+secrets.json
+
+# Obsidian vault caches and workspace state
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+.obsidian/indexeddb/
+.obsidian/graph.json
+.obsidian/plugins/*/
+
+# OS and Desktop metadata
+.directory
+.DS_Store
+Thumbs.db
+*.desktop
+
+# IDE & Editor caches
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+
+# Temporary, scratch, and log files
+*.log
+*.tmp
+*.bak
+*.zip
+.pipeline-test-backups/
+scratch/
+tmp/
+
+# Python caches (runtime isolation)
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Session memories (whitelisted audit trail)
+.agents/memories/*
+!.agents/memories/sessions/
+!.agents/memories/sessions/*.json
+!.agents/memories/active_context.md
