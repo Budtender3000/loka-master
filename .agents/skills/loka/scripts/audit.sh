@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # audit.sh — LOKA Guardian Knowledge Artifact (KA) Audit & Promotion Tool
-# Implements schema.md v0.2.2 frontmatter contract & two-axis lifecycle model
+# Implements schema.md v0.2.3 frontmatter contract & two-axis lifecycle model
 # ==============================================================================
 set -euo pipefail
 
@@ -105,39 +105,6 @@ INDEX_SCRIPT="$SCRIPT_DIR/index.sh"
 DOMAINS=("profiles" "behaviors" "standards" "workflows" "tools" "meta")
 
 # ------------------------------------------------------------------------------
-# 2.1. Bootstrap & Seed Invariant (§6) Gate
-# ------------------------------------------------------------------------------
-audit_bootstrap_gate() {
-    local seed_dir="$SCRIPT_DIR/../seed"
-    if [[ ! -d "$seed_dir" ]]; then
-        return 0
-    fi
-
-    echo -e "\n  ${BOLD}Auditing Bootstrap Invariant (§6):${NC}"
-    local missing_seeds=()
-    local seed_count=0
-    while IFS= read -r seed_file; do
-        [[ -z "$seed_file" ]] && continue
-        seed_count=$((seed_count + 1))
-        local rel_path="${seed_file#$seed_dir/}"
-        local target="$BRAIN_DIR/$rel_path"
-        if [[ ! -f "$target" ]]; then
-            missing_seeds+=("$rel_path")
-        fi
-    done < <(find "$seed_dir" -type f -name "*.md" | sort)
-
-    if [[ ${#missing_seeds[@]} -eq 0 ]]; then
-        pass "Bootstrap Invariant §6 verified (${seed_count} canonical seed artifacts present in vault)"
-        return 0
-    else
-        local missing_str
-        missing_str=$(IFS=', '; echo "${missing_seeds[*]}")
-        fail "Bootstrap Invariant §6 violation: missing required seed artifact(s)" "$missing_str"
-        return 1
-    fi
-}
-
-# ------------------------------------------------------------------------------
 # 3. Audit Engine for a Single Knowledge Artifact
 # ------------------------------------------------------------------------------
 audit_file() {
@@ -154,9 +121,9 @@ audit_file() {
     fi
 
     # Read metadata via shared parser
-    local id="" name="" type="" status="" deprecated="" description="" created="" owner=""
+    local id="" name="" type="" status="" deprecated="" description="" created="" stale_after="" owner="" verified="" sources=""
     local fm_start=0 fm_end=0 expected_end=0 err="" err_delimiter="" err_order="" unknown_keys="" missing_fields=""
-    local has_id=0 has_name=0 has_type=0 has_status=0 has_deprecated=0 has_description=0 has_created=0 has_owner=0
+    local has_id=0 has_name=0 has_type=0 has_status=0 has_deprecated=0 has_description=0 has_created=0 has_stale_after=0 has_owner=0 has_verified=0 has_sources=0
 
     while IFS='=' read -r k v; do
         case "$k" in
@@ -167,7 +134,10 @@ audit_file() {
             DEPRECATED) deprecated="$v" ;;
             DESCRIPTION) description="$v" ;;
             CREATED) created="$v" ;;
+            STALE_AFTER) stale_after="$v" ;;
             OWNER) owner="$v" ;;
+            VERIFIED) verified="$v" ;;
+            SOURCES) sources="$v" ;;
             FM_START) fm_start="$v" ;;
             FM_END) fm_end="$v" ;;
             EXPECTED_END) expected_end="$v" ;;
@@ -183,7 +153,10 @@ audit_file() {
             HAS_DEPRECATED) has_deprecated="$v" ;;
             HAS_DESCRIPTION) has_description="$v" ;;
             HAS_CREATED) has_created="$v" ;;
+            HAS_STALE_AFTER) has_stale_after="$v" ;;
             HAS_OWNER) has_owner="$v" ;;
+            HAS_VERIFIED) has_verified="$v" ;;
+            HAS_SOURCES) has_sources="$v" ;;
         esac
     done < <(parse_frontmatter "$file")
 
@@ -216,6 +189,42 @@ audit_file() {
         pass "Optional custodian field 'owner' present ('$owner')"
     else
         pass "Optional custodian field 'owner' omitted (valid)"
+    fi
+
+    # Optional stale_after check
+    if [[ "$has_stale_after" -eq 1 && -n "$stale_after" ]]; then
+        if [[ "$stale_after" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            pass "Optional freshness field 'stale_after' present and valid ('$stale_after')"
+        else
+            fail "Freshness field 'stale_after' invalid. Must match YYYY-MM-DD"
+        fi
+    else
+        pass "Optional freshness field 'stale_after' omitted (valid)"
+    fi
+
+    # Optional verified check
+    if [[ "$has_verified" -eq 1 && -n "$verified" ]]; then
+        case "$verified" in
+            human|attested|automated)
+                pass "Optional trustworthiness field 'verified' present and valid ('$verified')"
+                ;;
+            *)
+                fail "Trustworthiness field 'verified' invalid ('$verified'). Must be one of: human, attested, automated"
+                ;;
+        esac
+    else
+        pass "Optional trustworthiness field 'verified' omitted (valid)"
+    fi
+
+    # Optional sources check
+    if [[ "$has_sources" -eq 1 && -n "$sources" ]]; then
+        if [[ "$sources" =~ ^\[.*\]$ ]]; then
+            pass "Optional provenance field 'sources' present and valid ('$sources')"
+        else
+            fail "Provenance field 'sources' invalid. Must be an inline list [\"url\", ...]"
+        fi
+    else
+        pass "Optional provenance field 'sources' omitted (valid)"
     fi
 
     # Schema purity enforcement (undeclared keys non-compliant)
@@ -867,11 +876,18 @@ fi
 
 if [[ ${#TARGET_FILES[@]} -eq 0 ]]; then
     echo -e "${YELLOW}No knowledge artifacts found to audit.${NC}"
+    echo -e "\n${BOLD}${CYAN}=== Audit Summary (v0.2.3 Contract) ===${NC}"
+    echo -e "Total Artifacts: 0"
+    echo -e "Total Checks:    0"
+    echo -e "Passed:          0"
+    echo -e "Warnings:        0"
+    echo -e "Failures:        0"
+    echo -e "\n${BOLD}${GREEN}Result: ALL ARTIFACTS APPROVED! (Empty vault)${NC}\n"
     exit 0
 fi
 
 # Execution loop
-echo -e "${BOLD}${CYAN}=== LOKA Knowledge Artifact Audit (v0.2.2 Contract) ===${NC}"
+echo -e "${BOLD}${CYAN}=== LOKA Knowledge Artifact Audit (v0.2.3 Contract) ===${NC}"
 echo -e "Vault Root: ${BRAIN_DIR}"
 echo -e "Artifacts:  ${#TARGET_FILES[@]}"
 
@@ -908,11 +924,6 @@ elif [[ "$UNDEPRECATE_MODE" == true ]]; then
         fi
     done
 else
-    # Audit mode: Check Bootstrap Invariant (§6) first
-    if ! audit_bootstrap_gate; then
-        EXIT_CODE=1
-    fi
-
     for target in "${TARGET_FILES[@]}"; do
         TOTAL_FILES=$((TOTAL_FILES + 1))
         if ! audit_file "$target"; then
@@ -920,7 +931,7 @@ else
         fi
     done
 
-    echo -e "\n${BOLD}${CYAN}=== Audit Summary (v0.2.2 Contract) ===${NC}"
+    echo -e "\n${BOLD}${CYAN}=== Audit Summary (v0.2.3 Contract) ===${NC}"
     echo -e "Total Artifacts: ${TOTAL_FILES}"
     echo -e "Total Checks:    $((TOTAL_PASSES + TOTAL_FAILS + TOTAL_WARNS))"
     echo -e "Passed:          ${GREEN}${TOTAL_PASSES}${NC}"

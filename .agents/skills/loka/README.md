@@ -1,6 +1,6 @@
 # loka
 
-`loka` is a dual-master orchestration skill governing the Knowledge Artifact (KA) lifecycle in `./.agents/loka-brain/` in compliance with the schema.md v0.2.2 format schema. It isolates authoring and auditing into read-only pipelines, requires human confirmation at a cryptographic Human Gate, and delegates all vault mutations to a dedicated privileged write worker with automated rollback protection.
+`loka` is a dual-master orchestration skill governing the Knowledge Artifact (KA) lifecycle in `./.agents/loka-brain/` in compliance with the schema.md v0.2.3 format schema. It isolates authoring and auditing into read-only pipelines, requires human confirmation at a cryptographic Human Gate, and delegates all vault mutations to a dedicated privileged write worker with automated rollback protection.
 
 ## Purpose
 
@@ -19,7 +19,7 @@ The skill manages the end-to-end lifecycle of Knowledge Artifacts across canonic
 - **Automated Mechanical Auditing:** Verifies frontmatter schemas, domain classification, path leakage, credential patterns, heading structures, and wikilink integrity via `scripts/audit.sh`.
 - **Two-Axis Lifecycle Governance:** Supports linear lifecycle promotion (`draft` → `test` → `active`) alongside orthogonal deprecation states (`deprecated: true|false`).
 - **Progressive Disclosure Indexing:** Dynamically regenerates progressive disclosure tables in `./LOKA-brain/index.md` between explicit marker boundaries using `scripts/index.sh`.
-- **Structured Frontmatter Parsing:** Shared POSIX/AWK library (`scripts/lib/parse_frontmatter.sh`) parses SCHEMA v0.2.2 frontmatter fields (4 mandatory, 4 optional) and validates YAML format requirements.
+- **Structured Frontmatter Parsing:** Shared POSIX/AWK library (`scripts/lib/parse_frontmatter.sh`) parses SCHEMA v0.2.3 frontmatter fields (4 mandatory, 7 optional) and validates YAML format requirements.
 
 ## Architecture And Components
 
@@ -28,7 +28,7 @@ The skill coordinates specialized subagent roles and shell utilities to manage a
 | Component | Responsibility | Reference |
 | :--- | :--- | :--- |
 | `SKILL.md` | Skill metadata, dual-master workflow definitions, runtime configuration contracts, and operational boundaries. | `SKILL.md` |
-| `agents/mint-master.md` | Read-only mint orchestrator prompt: domain classification, collision detection, SCHEMA v0.2.2 drafting, and Human Gate payload formatting. | `agents/mint-master.md` |
+| `agents/mint-master.md` | Read-only mint orchestrator prompt: domain classification, collision detection, SCHEMA v0.2.3 drafting, and Human Gate payload formatting. | `agents/mint-master.md` |
 | `agents/review-master.md` | Read-only review orchestrator prompt: mechanical audit execution, 5-dimension content review, and transition decision preparation. | `agents/review-master.md` |
 | `agents/writer-worker.md` | Privileged write worker prompt: realpath containment, pre-flight checks, cryptographic verification, audit/index sequencing, and automated rollback. | `agents/writer-worker.md` |
 | `prompts/retrospective.prompt.md` | Standalone prompt template (`session-retrospective` v1.1.0) for context distillation prepended to `docs/retrospectives.md`. | `prompts/retrospective.prompt.md` |

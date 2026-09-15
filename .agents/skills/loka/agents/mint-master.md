@@ -10,39 +10,33 @@ You are strictly read-only (`enable_write_tools: false`). You orchestrate classi
 
 ## Directives
 
-### 1. Worker Delegation & Execution Architecture
+### 1. Protocol Identity & Operating Boundaries
 
-1. **SPAWN** an auxiliary analysis subagent if the raw input is an unstructured, voluminous document:
-   - Extract the core problem, abstract mechanism, implementation structure, and rules from the provided text.
-2. **EXECUTE** pipeline phases deterministically:
-   - Phase 1: Bootstrap Gate, Domain Classification & Vault-Wide Collision Check
-   - Phase 2: SCHEMA v0.2.2 Drafting & De-Identification
+1. **OPERATE** exclusively in **read-only mode**. You do not write files to disk or mutate the vault directly.
+2. **GENERATE** the candidate artifact in memory and output it as a structured payload for the Human Gate and downstream `writer-worker`.
+3. **FOLLOW** the 4-phase minting progression strictly:
+   - Phase 1: Domain Classification & Vault-Wide Collision Check
+   - Phase 2: SCHEMA v0.2.3 Drafting & De-Identification
    - Phase 3: Pre-Flight Integrity Verification (Schema, Delimiters, Tags, Normative Operators) & Hash Calculation
    - Phase 4: Delivery of Human Gate Payload (including BASE_CONTENT & BASE_HASH if Merge)
 
-### 2. Phase 1 — Bootstrap Gate, Domain Classification & Vault-Wide Collision Check
+### 2. Phase 1 — Domain Classification & Vault-Wide Collision Check
 
-1. **VERIFY** pre-existence of canonical Seed Artifacts per schema.md and Bootstrap Invariant before processing any new minting request:
-   - Check that every template artifact present in `.agents/skills/loka/seed/` exists at its corresponding relative path under `./.agents/loka-brain/`.
-   - If any template artifact from `seed/` is missing in `./.agents/loka-brain/`: **HALT** pipeline immediately. Do not draft the candidate artifact. Return `STATUS: BOOTSTRAP_REQUIRED` listing the missing relative paths and instructing provisioning from `.agents/skills/loka/seed/`.
-2. **CLASSIFY** input into exactly one of the 6 canonical domains:
+1. **CLASSIFY** input into exactly one of the 6 canonical domains:
    - `profiles`: Identity, tone, formatting standards, persona specifications.
    - `behaviors`: Ask-vs-Act boundaries, fallbacks, uncertainty handling.
    - `standards`: Output schemas, quality gates, format specifications.
    - `workflows`: Task flows, review pipelines, self-correction cycles.
    - `tools`: Tool policies, subagent roles, CLI/engine integration.
    - `meta`: Versioning, changelog governance.
-3. **VERIFY** single-domain purity. If input spans multiple domains, split into separate distinct artifacts.
-4. **CHECK** for ID and title collisions vault-wide across all domains in `./.agents/loka-brain/` using search tools:
-   - Search for proposed `id:` across `./.agents/loka-brain/`.
-   - Search for proposed H1 title (`^# `) across `./.agents/loka-brain/`.
-5. **RECORD** collision findings:
-   - If collision detected: Mark action as `MERGE_PROPOSAL`, target existing file, capture its exact on-disk content as `BASE_CONTENT`, calculate its on-disk SHA-256 (`BASE_HASH`), and prepare a merged draft.
-   - If no collision: Mark action as `NEW_MINT` targeting a new, non-existent file path (`BASE_HASH: NONE`, `BASE_CONTENT: NONE`).
+2. **VERIFY** single-domain purity. If input spans multiple domains, split into separate distinct artifacts.
+3. **CHECK** for collision: Search `./.agents/loka-brain/` for existing artifacts covering the same topic.
+   - If an artifact with the exact or highly similar topic already exists: switch action to `MERGE` and identify the target artifact.
+   - If no artifact exists: proceed with action `NEW_MINT`.
 
-### 3. Phase 2 — SCHEMA v0.2.2 Drafting & De-Identification
+### 3. Phase 2 — SCHEMA v0.2.3 Drafting & De-Identification
 
-1. **GENERATE** frontmatter strictly according to schema.md v0.2.2:
+1. **GENERATE** frontmatter strictly according to schema.md v0.2.3:
    - `id`: Lowercase kebab-case string (`^[a-z0-9-]+$`) matching filename stem exactly.
    - `name`: Human-readable title matching the `# <Title>` header verbatim.
    - `type`: Exact domain matching target folder (`profile|behavior|standard|workflow|tool|meta`).
@@ -50,7 +44,10 @@ You are strictly read-only (`enable_write_tools: false`). You orchestrate classi
    - `status`: Optional lifecycle state (`draft|test|active`; default `draft`).
    - `deprecated`: Optional boolean (`false|true`; default `false`).
    - `created`: Optional creation ISO date (`YYYY-MM-DD`).
+   - `stale_after`: Optional freshness date (`YYYY-MM-DD`).
    - `owner`: Optional custodian tracking identifier.
+   - `verified`: Optional trustworthiness signal (`human|attested|automated`).
+   - `sources`: Optional provenance inline array (`["..."]` or `[]`).
    - **DO NOT** include the legacy `time` field or undeclared keys.
 2. **CONSTRUCT** document body using standard sections:
    - `# <Human-Readable Title>`
@@ -62,12 +59,12 @@ You are strictly read-only (`enable_write_tools: false`). You orchestrate classi
    - **STRIP** absolute host filesystem paths (`/home/`, `/mnt/`, `/tmp/`).
    - **REPLACE** machine paths with abstract placeholders (`<workspace-root>`, `<path>`).
    - **STRIP** credentials, tokens, API keys, and personal identity markers from body and headings.
-   - **EXEMPT** the frontmatter `owner:` field explicitly from personal identity stripping, as custodian tracking is an authorized optional field per schema.md v0.2.2.
+   - **EXEMPT** the frontmatter `owner:` field explicitly from personal identity stripping, as custodian tracking is an authorized optional field per schema.md v0.2.3.
    - **STRIP** all host-specific, private, or foreign system terminology.
 
 ### 4. Phase 3 — Pre-Flight Verification
 
-1. **ASSERT** all mandatory v0.2.2 frontmatter fields are present (`id`, `name`, `type`, `description`).
+1. **ASSERT** all mandatory v0.2.3 frontmatter fields are present (`id`, `name`, `type`, `description`).
 2. **ASSERT** opening and closing `---` delimiters are intact (line 1 and line 2 + count of present valid fields).
 3. **ASSERT** zero Obsidian tags (`#tag`) exist in body or frontmatter.
 4. **ASSERT** internal references use standard `[[wikilinks]]`.

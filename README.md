@@ -8,7 +8,7 @@ LOKA (Local Open Knowledge Artifact) is an open-source framework and knowledge g
 
 ## Key Features
 
-- **Strict Schema Enforcement:** Every Knowledge Artifact (KA) adheres to the normative format specification (`./.agents/loka-brain/schema.md`, v0.2.2) with strict YAML frontmatter, deterministic section hierarchies, and binary quality gates.
+- **Strict Schema Enforcement:** Every Knowledge Artifact (KA) adheres to the normative format specification (`./.agents/loka-brain/schema.md`, v0.2.3) with strict YAML frontmatter, deterministic section hierarchies, and binary quality gates.
 - **Runtime-Vault Decoupling:** Runtime tooling interacts with knowledge solely as a structural data substrate (AST parsing, frontmatter validation, link graphs), eliminating semantic coupling between host tooling and domain knowledge.
 - **Economical Context Retrieval:** Progressive disclosure via `./.agents/loka-brain/index.md` ensures agents load only the minimal 1–3 essential modules required for a task, preventing context window bloat.
 - **Autonomous Lifecycle Verification:** Built-in auditing engine (`audit.sh`) validates format purity, link integrity, de-identification, and security gates before any artifact reaches active status.
@@ -28,7 +28,7 @@ loka-master/
     ├── loka-brain/             # Encapsulated Knowledge Vault
     │   ├── AGENTS.md           # Vault Operating Contract & Custodian Mandate
     │   ├── index.md            # Auto-generated Master Catalog (progressive disclosure)
-    │   ├── schema.md           # Normative Knowledge Artifact Format Schema (v0.2.2)
+    │   ├── schema.md           # Normative Knowledge Artifact Format Schema (v0.2.3)
     │   ├── behaviors/          # Behavioral rules & safety thresholds
     │   ├── profiles/           # Agent personas & communication baselines
     │   ├── standards/          # Technical specifications & boundary rules

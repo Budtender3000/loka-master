@@ -6,7 +6,7 @@ The `.agents` directory serves as the encapsulated operational knowledge vault a
 
 The primary purpose of `.agents` is to provide a machine-actionable, persistent knowledge architecture paired with isolated, privilege-separated agent execution skills:
 
-1. **LOKA Knowledge Vault (`./loka-brain/`)**: A modular, machine-actionable knowledge repository governed by `./loka-brain/AGENTS.md` and `./loka-brain/schema.md` (v0.2.2). It enforces linear lifecycle progression (`draft` → `test` → `active`), single-domain purity across six canonical domains (`profiles`, `behaviors`, `standards`, `workflows`, `tools`, `meta`), strict AST-compatible wikilinks, de-identification of host paths, and complete runtime-vault decoupling.
+1. **LOKA Knowledge Vault (`./loka-brain/`)**: A modular, machine-actionable knowledge repository governed by `./loka-brain/AGENTS.md` and `./loka-brain/schema.md` (v0.2.3). It enforces linear lifecycle progression (`draft` → `test` → `active`), single-domain purity across six canonical domains (`profiles`, `behaviors`, `standards`, `workflows`, `tools`, `meta`), strict AST-compatible wikilinks, de-identification of host paths, and complete runtime-vault decoupling.
 2. **Specialized Agent Skills (`./skills/`)**: Modular agent capabilities delegated to handle specific workspace tasks:
    - `loka` (`./skills/loka/`): Dual-master orchestrator managing the Knowledge Artifact lifecycle via read-only minting and review subagents, an interactive SHA-256 cryptographic Human Gate, and a transactional write worker with automated rollback.
    - `loka-git-manager` (`./skills/loka-git-manager/`): Local Git operations manager enforcing pre-flight checks, atomic Conventional Commits, and staged secret/debug scans without external push dependencies.
@@ -14,7 +14,7 @@ The primary purpose of `.agents` is to provide a machine-actionable, persistent 
 
 ## Key Capabilities
 
-- **Decoupled Knowledge Governance**: Machine-actionable knowledge vault (`./loka-brain/`) maintaining canonical domain separation under schema v0.2.2.
+- **Decoupled Knowledge Governance**: Machine-actionable knowledge vault (`./loka-brain/`) maintaining canonical domain separation under schema v0.2.3.
 - **Dual-Master Knowledge Lifecycle Management**: Read-only subagents (`mint-master`, `review-master`) with separated privileges and interactive SHA-256 Human Gate approval for artifact minting and promotion.
 - **Transactional Writes and Rollback**: Automated CLI engine (`./skills/loka/scripts/apply_mint.sh`) guaranteeing realpath containment, pre-flight checksum matching, atomic writes, and automated rollback on audit or index failures.
 - **Progressive Disclosure Catalog**: Dynamic master catalog (`./loka-brain/index.md`) regenerated via `./skills/loka/scripts/index.sh` using frontmatter metadata parsing within defined comment boundaries.
@@ -27,7 +27,7 @@ The primary purpose of `.agents` is to provide a machine-actionable, persistent 
 | Subsystem / Component | Path | Responsibility |
 | :--- | :--- | :--- |
 | **Vault Operating Contract** | `./loka-brain/AGENTS.md` | Authoritative vault contract, custodian mandate, portability invariants, risk tiers, and lifecycle quality gates. |
-| **Format Specification** | `./loka-brain/schema.md` | Normative structural schema (v0.2.2) governing frontmatter fields, canonical key ordering, and Markdown structure. |
+| **Format Specification** | `./loka-brain/schema.md` | Normative structural schema (v0.2.3) governing frontmatter fields, canonical key ordering, and Markdown structure. |
 | **Master Knowledge Catalog** | `./loka-brain/index.md` | Progressive disclosure catalog with dynamic auto-index replacement boundaries. |
 | **LOKA Master Skill** | `./skills/loka/SKILL.md` | Dual-master pipeline orchestration, subagent privilege separation, and Human Gate enforcement. |
 | **Mint Master Subagent** | `./skills/loka/agents/mint-master.md` | Read-only subagent prompt for bootstrap checks, domain classification, collision detection, and drafting. |
@@ -36,9 +36,7 @@ The primary purpose of `.agents` is to provide a machine-actionable, persistent 
 | **Transactional Mint Engine** | `./skills/loka/scripts/apply_mint.sh` | CLI engine executing atomic writes, pre-flight whitespace/hash checks, audit/index routines, and automated rollback. |
 | **Audit & Lifecycle Utility** | `./skills/loka/scripts/audit.sh` | Mechanical audit and lifecycle advancement utility verifying frontmatter, boundaries, and secrets. |
 | **Catalog Generator** | `./skills/loka/scripts/index.sh` | Dynamic catalog generator parsing frontmatter metadata and rebuilding `./loka-brain/index.md` tables. |
-| **Shared Frontmatter Parser** | `./skills/loka/scripts/lib/parse_frontmatter.sh` | Shared POSIX/AWK library validating schema v0.2.2 field order, delimiters, and values. |
-| **Rollback Test Harness** | `./skills/loka/scripts/test_mid_pipeline_rollback.sh` | Regression test harness verifying transactional rollback on audit (exit 20) and index (exit 21) failures. |
-| **Seed Artifacts** | `./skills/loka/seed/` | Canonical seed artifacts required by Bootstrap Invariant §6 prior to initial vault auditing. |
+| **Shared Frontmatter Parser** | `./skills/loka/scripts/lib/parse_frontmatter.sh` | Shared POSIX/AWK library validating schema v0.2.3 field order, delimiters, and values. |
 | **Local Git Manager** | `./skills/loka-git-manager/SKILL.md` | Local Git management skill enforcing atomic Conventional Commits, pre-flight checks, and staged secret scans. |
 | **Session Archivist** | `./skills/loka-log/SKILL.md` | Archivist skill managing session-end logging (`session_YYYY-MM-DD__HH-MM.json`) and `active_context.md`. |
 
@@ -158,7 +156,6 @@ The automation scripts provide command-line interfaces for maintenance, audit, a
 
 ## Important Notes And Limitations
 
-- **Bootstrap Invariant §6 Requirement**: Canonical domain directories (`./loka-brain/behaviors/`, `standards/`, `workflows/`, `tools/`, `profiles/`, `meta/`) are initially unpopulated on a fresh clone. Executing `audit.sh --all` or triggering `mint-master` before provisioning the 4 canonical seed artifacts from `./skills/loka/seed/` (`operational-safety-boundaries.md`, `economical-reading.md`, `runtime-vault-boundary-standards.md`, `specification-and-schema-standards.md`) into `./loka-brain/` will trigger a hard block (`STATUS: BOOTSTRAP_REQUIRED`).
 - **Cryptographic Hash Rigidity**: The write worker engine (`apply_mint.sh`) enforces strict byte-for-byte SHA-256 verification against the Human Gate approval. Unintentional modifications, trailing whitespace, or line ending conversions (CRLF vs LF) will cause hash mismatches and immediate pre-flight abortion.
 - **Runtime Privilege Enforcement**: Privilege separation between read-only masters (`mint-master`, `review-master`) and the write worker relies on host platform enforcement of `enable_write_tools: false`. In environments without tool restriction controls, isolation depends on prompt-level compliance.
 - **Strict Heading Hierarchy**: Knowledge Artifact Markdown structure is rigorously validated by `audit.sh`. Artifact bodies must adhere strictly to either `Context -> Mechanism -> Rules` or `Context -> Mechanism -> Implementation -> Rules`. Extraneous H1 headers, missing H2 headers, or misordered sections trigger audit failures.

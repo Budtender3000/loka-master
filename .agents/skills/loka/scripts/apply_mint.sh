@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # apply_mint.sh — LOKA Transactional Knowledge Artifact Mint & Rollback Engine
-# Implements schema.md v0.2.2 atomic write, verification, catalog indexing, and rollback
+# Implements schema.md v0.2.3 atomic write, verification, catalog indexing, and rollback
 # ==============================================================================
 set -euo pipefail
 

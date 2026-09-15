@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Core Knowledge Vault (`./.agents/loka-brain/`):**
   - Normative format specification (`schema.md`, v0.2.2) defining YAML frontmatter constraints, heading hierarchies, and binary quality gates.
   - Auto-generated Master Catalog (`index.md`) supporting progressive disclosure and economical context retrieval.
-  - Clean, unpopulated canonical domain folders (`behaviors/`, `profiles/`, `standards/`, `workflows/`, `tools/`, `meta/`) ready for user artifacts, with reference seed templates preserved in `.agents/skills/loka/seed/`.
+  - Clean, unpopulated canonical domain folders (`behaviors/`, `profiles/`, `standards/`, `workflows/`, `tools/`, `meta/`) ready for user artifacts.
   - Vault Operating Contract (`.agents/loka-brain/AGENTS.md`) establishing the Custodian Mandate and standalone portability invariants.
 - **Core Skill Suite (`./.agents/skills/`):**
   - `loka`: Master Orchestrator for knowledge minting, auditing, indexing, and lifecycle promotion.

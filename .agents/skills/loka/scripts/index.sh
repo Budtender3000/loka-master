@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # index.sh — Auto-Updating Index Generator for LOKA-brain Knowledge Artifacts
-# Implements schema.md v0.2.2 frontmatter contract with progressive disclosure
+# Implements schema.md v0.2.3 frontmatter contract with progressive disclosure
 # ==============================================================================
 set -euo pipefail
 

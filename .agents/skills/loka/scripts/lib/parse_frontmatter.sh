@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # parse_frontmatter.sh — Shared Frontmatter Parser for LOKA Knowledge Artifacts
-# Implements schema.md v0.2.2 contract (canonical key ordering, 4-mandatory-field model)
+# Implements schema.md v0.2.3 contract (canonical key ordering, 4-mandatory-field model with OKF v0.2 trust signals)
 # ==============================================================================
 set -euo pipefail
 
@@ -25,10 +25,10 @@ parse_frontmatter() {
         key_count = 0
 
         id = ""; name = ""; type = ""; status = ""
-        deprecated = ""; description = ""; created = ""; owner = ""
+        deprecated = ""; description = ""; created = ""; stale_after = ""; owner = ""; verified = ""; sources = ""
 
         has_id = 0; has_name = 0; has_type = 0; has_status = 0
-        has_deprecated = 0; has_description = 0; has_created = 0; has_owner = 0
+        has_deprecated = 0; has_description = 0; has_created = 0; has_stale_after = 0; has_owner = 0; has_verified = 0; has_sources = 0
 
         unknown_keys = ""
     }
@@ -106,10 +106,22 @@ parse_frontmatter() {
                 if (has_created) err = "Duplicate frontmatter key: created"
                 created = val
                 has_created = 1
+            } else if (key == "stale_after") {
+                if (has_stale_after) err = "Duplicate frontmatter key: stale_after"
+                stale_after = val
+                has_stale_after = 1
             } else if (key == "owner") {
                 if (has_owner) err = "Duplicate frontmatter key: owner"
                 owner = val
                 has_owner = 1
+            } else if (key == "verified") {
+                if (has_verified) err = "Duplicate frontmatter key: verified"
+                verified = val
+                has_verified = 1
+            } else if (key == "sources") {
+                if (has_sources) err = "Duplicate frontmatter key: sources"
+                sources = val
+                has_sources = 1
             } else {
                 if (unknown_keys == "") {
                     unknown_keys = key
@@ -124,7 +136,7 @@ parse_frontmatter() {
         }
     }
     END {
-        present_valid_fields = (has_id ? 1 : 0) + (has_name ? 1 : 0) + (has_type ? 1 : 0) + (has_status ? 1 : 0) + (has_deprecated ? 1 : 0) + (has_description ? 1 : 0) + (has_created ? 1 : 0) + (has_owner ? 1 : 0)
+        present_valid_fields = (has_id ? 1 : 0) + (has_name ? 1 : 0) + (has_type ? 1 : 0) + (has_status ? 1 : 0) + (has_deprecated ? 1 : 0) + (has_description ? 1 : 0) + (has_created ? 1 : 0) + (has_stale_after ? 1 : 0) + (has_owner ? 1 : 0) + (has_verified ? 1 : 0) + (has_sources ? 1 : 0)
         expected_end = 2 + present_valid_fields
         if (err_delimiter == "" && fm_start == 1 && fm_end > 0 && fm_end != expected_end) {
             err_delimiter = "Closing delimiter --- must be on line " expected_end " (found on line " fm_end ")"
@@ -143,13 +155,16 @@ parse_frontmatter() {
         canonical_keys[5] = "deprecated"
         canonical_keys[6] = "description"
         canonical_keys[7] = "created"
-        canonical_keys[8] = "owner"
+        canonical_keys[8] = "stale_after"
+        canonical_keys[9] = "owner"
+        canonical_keys[10] = "verified"
+        canonical_keys[11] = "sources"
 
         err_order = ""
         curr_pos = 1
         for (i = 1; i <= key_count; i++) {
             found_idx = 0
-            for (j = curr_pos; j <= 8; j++) {
+            for (j = curr_pos; j <= 11; j++) {
                 if (key_arr[i] == canonical_keys[j]) {
                     found_idx = j
                     break
@@ -179,6 +194,12 @@ parse_frontmatter() {
             format_err = "Invalid deprecated flag (" deprecated "): must be boolean literal true or false"
         } else if (has_created && created != "" && created !~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) {
             format_err = "Invalid created date (" created "): must match YYYY-MM-DD"
+        } else if (has_stale_after && stale_after != "" && stale_after !~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) {
+            format_err = "Invalid stale_after date (" stale_after "): must match YYYY-MM-DD"
+        } else if (has_verified && verified != "" && verified !~ /^(human|attested|automated)$/) {
+            format_err = "Invalid verified status (" verified "): must be one of human, attested, automated"
+        } else if (has_sources && sources != "" && sources !~ /^\[.*\]$/) {
+            format_err = "Invalid sources array (" sources "): must be an inline list [\"url\", ...]"
         }
 
         validation_err = ""
@@ -212,7 +233,10 @@ parse_frontmatter() {
         printf "HAS_DEPRECATED=%d\n", has_deprecated
         printf "HAS_DESCRIPTION=%d\n", has_description
         printf "HAS_CREATED=%d\n", has_created
+        printf "HAS_STALE_AFTER=%d\n", has_stale_after
         printf "HAS_OWNER=%d\n", has_owner
+        printf "HAS_VERIFIED=%d\n", has_verified
+        printf "HAS_SOURCES=%d\n", has_sources
         printf "ID=%s\n", id
         printf "NAME=%s\n", name
         printf "TYPE=%s\n", type
@@ -220,7 +244,10 @@ parse_frontmatter() {
         printf "DEPRECATED=%s\n", deprecated
         printf "DESCRIPTION=%s\n", description
         printf "CREATED=%s\n", created
+        printf "STALE_AFTER=%s\n", stale_after
         printf "OWNER=%s\n", owner
+        printf "VERIFIED=%s\n", verified
+        printf "SOURCES=%s\n", sources
         printf "UNKNOWN_KEYS=%s\n", unknown_keys
         printf "MISSING_FIELDS=%s\n", missing
     }

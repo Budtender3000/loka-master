@@ -1,6 +1,6 @@
 ---
 name: loka
-description: Master Orchestrator for LOKA Knowledge Artifacts (KAs). Governs schema.md v0.2.2 minting of new KAs and auditing, lifecycle promotion (draft→test→active), and deprecation of existing KAs using dual read-only masters and an explicit Human Gate with draft-hash verification. Use when the user wants to mint/document/archive findings ("add this to LOKA", "mint this", "document this pattern") or audit/review/promote KAs ("audit LOKA", "review this KA", "promote X").
+description: Master Orchestrator for LOKA Knowledge Artifacts (KAs). Governs schema.md v0.2.3 minting of new KAs and auditing, lifecycle promotion (draft→test→active), and deprecation of existing KAs using dual read-only masters and an explicit Human Gate with draft-hash verification. Use when the user wants to mint/document/archive findings ("add this to LOKA", "mint this", "document this pattern") or audit/review/promote KAs ("audit LOKA", "review this KA", "promote X").
 ---
 
 # loka — Dual-Master Orchestrator
@@ -19,7 +19,7 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
   [Master: loka-mint-master]                                        [Master: loka-review-master]
   (Read-Only: write_tools: false)                                   (Read-Only: write_tools: false)
   - Classify domain & vault-wide ID check                           - Inspect candidate / transition
-  - Draft SCHEMA v0.2.2 KA & de-identify                            - Evaluate 5 audit dimensions
+  - Draft SCHEMA v0.2.3 KA & de-identify                            - Evaluate 5 audit dimensions
   - Verify normative operators & whitespace hygiene                 - Formulate recommendation
                   │                                                                 │
                   ▼                                                                 ▼
@@ -54,7 +54,7 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
 - `agents/review-master.md` — Review and promotion pipeline orchestrator prompt (read-only master).
 - `agents/writer-worker.md` — Execution worker prompt for vault mutations post Human Gate.
 - `scripts/apply_mint.sh` — Transactional Knowledge Artifact mint and rollback engine.
-- `scripts/audit.sh` — Deterministic verification and promotion engine (SCHEMA v0.2.2).
+- `scripts/audit.sh` — Deterministic verification and promotion engine (SCHEMA v0.2.3).
 - `scripts/index.sh` — Vault catalog generator with progressive disclosure descriptions.
 - `scripts/lib/parse_frontmatter.sh` — Order-agnostic frontmatter parser.
 - `prompts/retrospective.prompt.md` — Standalone context distillation into `docs/retrospectives.md`.

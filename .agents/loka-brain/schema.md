@@ -1,6 +1,6 @@
 # LOKA Knowledge Artifact Format Schema
 
-- **Specification Version:** 0.2.2
+- **Specification Version:** 0.2.3
 - **Scope:** Normative structural and syntactic format schema for Knowledge Artifacts (`./.agents/loka-brain/`)
 
 ---
@@ -20,7 +20,10 @@ Every Knowledge Artifact must begin on line 1 with a YAML frontmatter block encl
 | `status` | Optional | Enum String | Operational lifecycle status: `draft`, `test`, `active`. If omitted, the artifact is treated as unpromoted working draft. |
 | `deprecated` | Optional | Boolean Literal | Supersession flag: `false` or `true`. Defaults to `false` if omitted. |
 | `created` | Optional | ISO-8601 Date (`YYYY-MM-DD`) | Creation date matching `^[0-9]{4}-[0-9]{2}-[0-9]{2}$`. Emitted unquoted. |
+| `stale_after` | Optional | ISO-8601 Date (`YYYY-MM-DD`) | OKF v0.2 Freshness trust signal matching `^[0-9]{4}-[0-9]{2}-[0-9]{2}$`. Emitted unquoted. |
 | `owner` | Optional | String (UTF-8) | Custodian tracking identifier (e.g. `custodian`). |
+| `verified` | Optional | Enum String | OKF v0.2 Trustworthiness signal: `human`, `attested`, or `automated`. Emitted unquoted. |
+| `sources` | Optional | Inline Array (`["..."]`) | OKF v0.2 Provenance signal: inline JSON/YAML array of URI or source references matching `^\[.*\]$`. |
 
 ### 1.2 Canonical Key Order & Formatting Rules
 
@@ -35,13 +38,16 @@ status: <draft|test|active>
 deprecated: <false|true>
 description: <Concise single line description>
 created: YYYY-MM-DD
+stale_after: YYYY-MM-DD
 owner: <custodian_identifier>
+verified: <human|attested|automated>
+sources: [<source_url>, ...]
 ---
 ```
 
 - **Opening Delimiter:** Line 1 (`---`).
-- **Closing Delimiter:** Must reside on line $2 + \text{present\_valid\_fields}$ (`---`). With all 4 mandatory fields present and 0 optional fields, the closing delimiter is on line 6; with all 4 optional fields present, it is on line 10.
-- **Quoting Rules:** `deprecated` and `created` must remain unquoted literals. `description` must remain unquoted unless containing characters with special YAML syntactic meaning (`:`, `{`, `}`, `[`, `]`).
+- **Closing Delimiter:** Must reside on line $2 + \text{present\_valid\_fields}$ (`---`). With all 4 mandatory fields present and 0 optional fields, the closing delimiter is on line 6; with all 7 optional fields present, it is on line 13.
+- **Quoting Rules:** `deprecated`, `created`, `stale_after`, and `verified` must remain unquoted literals. `sources` must be an inline array (`["..."]` or `[]`). `description` must remain unquoted unless containing characters with special YAML syntactic meaning (`:`, `{`, `}`, `[`, `]`).
 - **Schema Purity:** Zero undeclared keys, legacy aliases (such as `time`), or unknown fields are permitted.
 
 ---
