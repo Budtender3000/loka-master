@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `loka`: Master Orchestrator for knowledge minting, auditing, indexing, and lifecycle promotion.
   - `loka-git-manager`: Local Git safety, pre-flight checks, atomic Conventional Commits, and secret scanning.
   - `loka-log`: Deterministic session logging, factual audit trails, and context handovers.
-- **Root Governance:**
+- **Root Governance & Documentation:**
   - Workspace Operating Contract (`AGENTS.md`) defining project identity, boundary rules, and skill delegations.
+  - Comprehensive Agent Environment architecture and sequence documentation (`.agents/README.md`).
   - Clean `.gitignore` masking local editor caches, secrets, and transient state.

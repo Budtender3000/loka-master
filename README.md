@@ -24,6 +24,7 @@ loka-master/
 ├── CHANGELOG.md                # Project release history & version tracking
 ├── README.md                   # Project overview & quickstart guide
 └── .agents/
+    ├── README.md               # Agent runtime architecture & subsystems overview
     ├── loka-brain/             # Encapsulated Knowledge Vault
     │   ├── AGENTS.md           # Vault Operating Contract & Custodian Mandate
     │   ├── index.md            # Auto-generated Master Catalog (progressive disclosure)
@@ -85,6 +86,9 @@ Every Knowledge Artifact transitions through three one-directional operational s
 - **`loka`:** Governs the end-to-end lifecycle of Knowledge Artifacts. Coordinates subagents (`loka-mint-master`, `loka-writer`, `loka-review-master`) for deterministic minting, strict auditing, index maintenance, and promotion.
 - **`loka-git-manager`:** Enforces repository hygiene, atomic Conventional Commits, pre-flight branch checks, and sensitive data masking.
 - **`loka-log`:** Captures factual session progress, milestones, and active context handovers in `./.agents/memories/`.
+
+> [!TIP]
+> For a comprehensive architectural breakdown, sequence diagrams, and technical subsystem specifications of the execution runtime, see [`.agents/README.md`](./.agents/README.md).
 
 ---
 
