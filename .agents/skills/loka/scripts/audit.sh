@@ -185,15 +185,21 @@ audit_file() {
     fi
 
     # Optional owner check
-    if [[ "$has_owner" -eq 1 && -n "$owner" ]]; then
-        pass "Optional custodian field 'owner' present ('$owner')"
+    if [[ "$has_owner" -eq 1 ]]; then
+        if [[ -n "$owner" ]]; then
+            pass "Optional custodian field 'owner' present ('$owner')"
+        else
+            fail "Custodian field 'owner' declared but empty"
+        fi
     else
         pass "Optional custodian field 'owner' omitted (valid)"
     fi
 
     # Optional stale_after check
-    if [[ "$has_stale_after" -eq 1 && -n "$stale_after" ]]; then
-        if [[ "$stale_after" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+    if [[ "$has_stale_after" -eq 1 ]]; then
+        if [[ -z "$stale_after" ]]; then
+            fail "Freshness field 'stale_after' declared but empty"
+        elif [[ "$stale_after" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
             pass "Optional freshness field 'stale_after' present and valid ('$stale_after')"
         else
             fail "Freshness field 'stale_after' invalid. Must match YYYY-MM-DD"
@@ -203,22 +209,28 @@ audit_file() {
     fi
 
     # Optional verified check
-    if [[ "$has_verified" -eq 1 && -n "$verified" ]]; then
-        case "$verified" in
-            human|attested|automated)
-                pass "Optional trustworthiness field 'verified' present and valid ('$verified')"
-                ;;
-            *)
-                fail "Trustworthiness field 'verified' invalid ('$verified'). Must be one of: human, attested, automated"
-                ;;
-        esac
+    if [[ "$has_verified" -eq 1 ]]; then
+        if [[ -z "$verified" ]]; then
+            fail "Trustworthiness field 'verified' declared but empty"
+        else
+            case "$verified" in
+                human|attested|automated)
+                    pass "Optional trustworthiness field 'verified' present and valid ('$verified')"
+                    ;;
+                *)
+                    fail "Trustworthiness field 'verified' invalid ('$verified'). Must be one of: human, attested, automated"
+                    ;;
+            esac
+        fi
     else
         pass "Optional trustworthiness field 'verified' omitted (valid)"
     fi
 
     # Optional sources check
-    if [[ "$has_sources" -eq 1 && -n "$sources" ]]; then
-        if [[ "$sources" =~ ^\[.*\]$ ]]; then
+    if [[ "$has_sources" -eq 1 ]]; then
+        if [[ -z "$sources" ]]; then
+            fail "Provenance field 'sources' declared but empty"
+        elif [[ "$sources" =~ ^\[.*\]$ ]]; then
             pass "Optional provenance field 'sources' present and valid ('$sources')"
         else
             fail "Provenance field 'sources' invalid. Must be an inline list [\"url\", ...]"

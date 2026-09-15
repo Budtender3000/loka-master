@@ -32,9 +32,9 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
    - For `MERGE`: `TARGET_PATH`, `BASE_HASH`, `BASE_CONTENT`, `DRAFT_HASH`, `DRAFT_CONTENT`.
    - For `PROMOTE` / `DEPRECATE` / `UNDEPRECATE`: `TARGET_PATH`, `DRAFT_HASH`, `ACTION`.
 2. **EXECUTE** In-Memory Structural & Normative Pre-Flight on `DRAFT_CONTENT`:
-   - **ASSERT** valid YAML delimiters (line 1 opening `---`, line 9 or 10 closing `---`).
-   - **ASSERT** all mandatory v0.2.1 fields present (`id`, `name`, `type`, `status`, `deprecated`, `description`, `created`).
-   - **ASSERT** complete absence of legacy `time` field.
+   - **ASSERT** valid YAML delimiters (line 1 opening `---`, closing `---` at line 2 + count of present valid fields, lines 6 to 13).
+   - **ASSERT** all mandatory v0.2.3 fields present (`id`, `name`, `type`, `description`).
+   - **ASSERT** complete absence of legacy `time` field and undeclared keys.
    - **ASSERT** complete absence of Obsidian tags (`#tag`).
    - **ASSERT** zero trailing whitespace on any line of `DRAFT_CONTENT`.
    - **ASSERT** all rule bullets in `## Rules` begin with uppercase bold normative action operators (`**DO**`, `**DO NOT**`, `**READ**`, `**WRITE**`, `**VERIFY**`, `**CHECK**`, `**ASSERT**`, `**NEVER**`, `**ALWAYS**`, `**ENFORCE**`).

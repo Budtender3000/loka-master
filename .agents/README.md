@@ -30,7 +30,7 @@ The primary purpose of `.agents` is to provide a machine-actionable, persistent 
 | **Format Specification** | `./loka-brain/schema.md` | Normative structural schema (v0.2.3) governing frontmatter fields, canonical key ordering, and Markdown structure. |
 | **Master Knowledge Catalog** | `./loka-brain/index.md` | Progressive disclosure catalog with dynamic auto-index replacement boundaries. |
 | **LOKA Master Skill** | `./skills/loka/SKILL.md` | Dual-master pipeline orchestration, subagent privilege separation, and Human Gate enforcement. |
-| **Mint Master Subagent** | `./skills/loka/agents/mint-master.md` | Read-only subagent prompt for bootstrap checks, domain classification, collision detection, and drafting. |
+| **Mint Master Subagent** | `./skills/loka/agents/mint-master.md` | Read-only subagent prompt for domain classification, collision detection, and drafting. |
 | **Review Master Subagent** | `./skills/loka/agents/review-master.md` | Read-only subagent prompt for mechanical audit, 5-dimension content review, and lifecycle advancement. |
 | **Writer Worker Subagent** | `./skills/loka/agents/writer-worker.md` | Privileged write worker prompt enforcing realpath containment, pre-flight checks, and rollback. |
 | **Transactional Mint Engine** | `./skills/loka/scripts/apply_mint.sh` | CLI engine executing atomic writes, pre-flight whitespace/hash checks, audit/index routines, and automated rollback. |

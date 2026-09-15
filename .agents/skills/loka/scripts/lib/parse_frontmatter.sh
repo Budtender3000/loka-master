@@ -184,21 +184,43 @@ parse_frontmatter() {
         if (!has_description || description == "") missing = missing (missing == "" ? "" : ", ") "description"
 
         format_err = ""
-        if (has_id && id != "" && id !~ /^[a-z0-9-]+$/) {
+        if (has_id && id == "") {
+            format_err = "Field id declared but value is empty"
+        } else if (has_name && name == "") {
+            format_err = "Field name declared but value is empty"
+        } else if (has_type && type == "") {
+            format_err = "Field type declared but value is empty"
+        } else if (has_description && description == "") {
+            format_err = "Field description declared but value is empty"
+        } else if (has_status && status == "") {
+            format_err = "Field status declared but value is empty"
+        } else if (has_deprecated && deprecated == "") {
+            format_err = "Field deprecated declared but value is empty"
+        } else if (has_created && created == "") {
+            format_err = "Field created declared but value is empty"
+        } else if (has_stale_after && stale_after == "") {
+            format_err = "Field stale_after declared but value is empty"
+        } else if (has_owner && owner == "") {
+            format_err = "Field owner declared but value is empty"
+        } else if (has_verified && verified == "") {
+            format_err = "Field verified declared but value is empty"
+        } else if (has_sources && sources == "") {
+            format_err = "Field sources declared but value is empty"
+        } else if (has_id && id !~ /^[a-z0-9-]+$/) {
             format_err = "Invalid id (" id "): must be lowercase kebab-case"
-        } else if (has_type && type != "" && type !~ /^(profile|behavior|standard|workflow|tool|meta)$/) {
+        } else if (has_type && type !~ /^(profile|behavior|standard|workflow|tool|meta)$/) {
             format_err = "Invalid type (" type "): must be one of profile, behavior, standard, workflow, tool, meta"
-        } else if (has_status && status != "" && status !~ /^(draft|test|active)$/) {
+        } else if (has_status && status !~ /^(draft|test|active)$/) {
             format_err = "Invalid status (" status "): must be one of draft, test, active"
-        } else if (has_deprecated && deprecated != "" && deprecated !~ /^(true|false)$/) {
+        } else if (has_deprecated && deprecated !~ /^(true|false)$/) {
             format_err = "Invalid deprecated flag (" deprecated "): must be boolean literal true or false"
-        } else if (has_created && created != "" && created !~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) {
+        } else if (has_created && created !~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) {
             format_err = "Invalid created date (" created "): must match YYYY-MM-DD"
-        } else if (has_stale_after && stale_after != "" && stale_after !~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) {
+        } else if (has_stale_after && stale_after !~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) {
             format_err = "Invalid stale_after date (" stale_after "): must match YYYY-MM-DD"
-        } else if (has_verified && verified != "" && verified !~ /^(human|attested|automated)$/) {
+        } else if (has_verified && verified !~ /^(human|attested|automated)$/) {
             format_err = "Invalid verified status (" verified "): must be one of human, attested, automated"
-        } else if (has_sources && sources != "" && sources !~ /^\[.*\]$/) {
+        } else if (has_sources && sources !~ /^\[.*\]$/) {
             format_err = "Invalid sources array (" sources "): must be an inline list [\"url\", ...]"
         }
 
