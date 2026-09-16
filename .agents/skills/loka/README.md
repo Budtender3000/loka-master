@@ -9,7 +9,7 @@ The skill manages the end-to-end lifecycle of Knowledge Artifacts across canonic
 - **Isolated Dual-Master Pipelines:** Separates operations into read-only minting (`loka-mint-master`) for collision detection and drafting, and read-only reviewing (`loka-review-master`) for mechanical verification and content audits.
 - **Cryptographic Human Gate:** Enforces human confirmation on all vault mutations using SHA-256 draft hash verification to guarantee that persisted content matches user-approved drafts.
 - **Safe Mutation and Rollback:** Executes mutations through a dedicated worker (`loka-writer`) and transactional engine (`scripts/apply_mint.sh`) with realpath containment within `./.agents/loka-brain/`, executing mechanical audits and catalog indexing, with automated rollbacks on any failure.
-- **Session Retrospective Distillation:** Bundles an independent context distillation prompt (`prompts/retrospective.prompt.md`) to append technical post-mortems to `docs/retrospectives.md`.
+- **Session Retrospective Distillation:** Bundles an independent context distillation prompt (`prompts/retrospective.prompt.md`) to append technical post-mortems to `./.agents/loka-brain/retrospectives.md`.
 
 ## Key Capabilities
 
@@ -31,7 +31,7 @@ The skill coordinates specialized subagent roles and shell utilities to manage a
 | `agents/mint-master.md` | Read-only mint orchestrator prompt: domain classification, collision detection, SCHEMA v0.2.3 drafting, and Human Gate payload formatting. | `agents/mint-master.md` |
 | `agents/review-master.md` | Read-only review orchestrator prompt: mechanical audit execution, 5-dimension content review, and transition decision preparation. | `agents/review-master.md` |
 | `agents/writer-worker.md` | Privileged write worker prompt: realpath containment, pre-flight checks, cryptographic verification, audit/index sequencing, and automated rollback. | `agents/writer-worker.md` |
-| `prompts/retrospective.prompt.md` | Standalone prompt template (`session-retrospective` v1.1.0) for context distillation prepended to `docs/retrospectives.md`. | `prompts/retrospective.prompt.md` |
+| `prompts/retrospective.prompt.md` | Standalone prompt template (`session-retrospective` v1.1.0) for context distillation prepended to `./.agents/loka-brain/retrospectives.md`. | `prompts/retrospective.prompt.md` |
 | `scripts/lib/parse_frontmatter.sh` | Shared shell library providing `parse_frontmatter()` using AWK to extract and validate frontmatter fields. | `scripts/lib/parse_frontmatter.sh` |
 | `scripts/apply_mint.sh` | Transactional CLI engine for atomic artifact minting, realpath containment, whitespace linting, and automated rollbacks. | `scripts/apply_mint.sh` |
 | `scripts/audit.sh` | CLI utility for automated structural checks, path/secret de-identification, markdown validation, and lifecycle transitions. | `scripts/audit.sh` |

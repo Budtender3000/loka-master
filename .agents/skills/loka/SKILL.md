@@ -60,7 +60,7 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
 - `scripts/audit.sh` — Deterministic verification and promotion engine (SCHEMA v0.2.3).
 - `scripts/index.sh` — Vault catalog generator with progressive disclosure descriptions.
 - `scripts/lib/parse_frontmatter.sh` — Order-agnostic frontmatter parser.
-- `prompts/retrospective.prompt.md` — Standalone context distillation into `docs/retrospectives.md`.
+- `prompts/retrospective.prompt.md` — Standalone context distillation into `./.agents/loka-brain/retrospectives.md`.
 
 ## Mode Selection
 
