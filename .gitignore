@@ -50,4 +50,5 @@ __pycache__/
 .agents/memories/*
 !.agents/memories/sessions/
 !.agents/memories/sessions/*.json
-!.agents/memories/active_context.md
+!.agents/memories/handovers/
+!.agents/memories/handovers/*.md

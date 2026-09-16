@@ -10,7 +10,7 @@ The primary purpose of `.agents` is to provide a machine-actionable, persistent 
 2. **Specialized Agent Skills (`./skills/`)**: Modular agent capabilities delegated to handle specific workspace tasks:
    - `loka` (`./skills/loka/`): Dual-master orchestrator managing the Knowledge Artifact lifecycle via read-only minting and review subagents, an interactive SHA-256 cryptographic Human Gate, and a transactional write worker with automated rollback.
    - `loka-git-manager` (`./skills/loka-git-manager/`): Local Git operations manager enforcing pre-flight checks, atomic Conventional Commits, and staged secret/debug scans without external push dependencies.
-   - `loka-log` (`./skills/loka-log/`): Workspace archivist recording immutable session evidence ledgers (`session_YYYY-MM-DD__HH-MM.json`) and maintaining the start-ready current state summary (`active_context.md`).
+   - `loka-log` (`./skills/loka-log/`): Workspace archivist recording immutable session evidence ledgers (`YYYY-MM-DD_HH-MM-sessionlog.json`), with delegated modes for log querying and structured session handover capture (`./memories/handovers/`).
 
 ## Key Capabilities
 
@@ -20,7 +20,7 @@ The primary purpose of `.agents` is to provide a machine-actionable, persistent 
 - **Progressive Disclosure Catalog**: Dynamic master catalog (`./loka-brain/index.md`) regenerated via `./skills/loka/scripts/index.sh` using frontmatter metadata parsing within defined comment boundaries.
 - **Mechanical Audit and Secret Scanning**: Comprehensive CLI verification (`./skills/loka/scripts/audit.sh`) enforcing YAML schema compliance, heading hierarchies, lifecycle transitions, and host path de-identification.
 - **Safe Local Git Operations**: Strict pre-flight checks, branch validation, Conventional Commit formatting, and staged secret detection (`./skills/loka-git-manager/`).
-- **Session Evidence Archiving**: Structured JSON evidence logging and start-ready active context tracking (`./skills/loka-log/`).
+- **Session Evidence Archiving**: Structured JSON session logging, on-demand log querying, and structured session handover capture (`./skills/loka-log/`).
 
 ## Subsystems And Architecture
 
@@ -38,7 +38,7 @@ The primary purpose of `.agents` is to provide a machine-actionable, persistent 
 | **Catalog Generator** | `./skills/loka/scripts/index.sh` | Dynamic catalog generator parsing frontmatter metadata and rebuilding `./loka-brain/index.md` tables. |
 | **Shared Frontmatter Parser** | `./skills/loka/scripts/lib/parse_frontmatter.sh` | Shared POSIX/AWK library validating schema v0.2.3 field order, delimiters, and values. |
 | **Local Git Manager** | `./skills/loka-git-manager/SKILL.md` | Local Git management skill enforcing atomic Conventional Commits, pre-flight checks, and staged secret scans. |
-| **Session Archivist** | `./skills/loka-log/SKILL.md` | Archivist skill managing session-end logging (`session_YYYY-MM-DD__HH-MM.json`) and `active_context.md`. |
+| **Session Archivist** | `./skills/loka-log/SKILL.md` | Archivist skill managing session-end logging (`YYYY-MM-DD_HH-MM-sessionlog.json`), delegated log query (`references/log-query.md`), and session handover capture (`references/session-handover.md`). |
 
 ## Execution Workflows
 
@@ -87,7 +87,7 @@ sequenceDiagram
 ### Git Safety and Session Logging Workflows
 
 - **Git Safety Pipeline (`loka-git-manager`)**: Executes working directory and branch verification, runs staged secret and whitespace scans (`git diff --cached --check`, `git diff --cached -G`), and creates atomic Conventional Commits without automatic push.
-- **Session Logging Pipeline (`loka-log`)**: Validates repository state, records structured session evidence into `./memories/sessions/session_YYYY-MM-DD__HH-MM.json`, and updates `./memories/active_context.md`.
+- **Session Logging Pipeline (`loka-log`)**: Validates repository state and records structured session evidence into `./memories/sessions/YYYY-MM-DD_HH-MM-sessionlog.json` (Mode A, default). Delegated on explicit request: log querying against existing session logs (Mode B), or structured session handover capture into `./memories/handovers/YYYY-MM-DD_HH-MM-session-handover.md` (Mode C).
 
 ## Operational Commands
 
