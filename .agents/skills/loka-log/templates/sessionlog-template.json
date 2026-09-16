@@ -1,11 +1,17 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "template": true,
   "timestamp": "ISO8601 with timezone offset",
-  "session_id": "session_YYYY-MM-DD__HH-MM",
+  "session_id": "YYYY-MM-DD_HH-MM-sessionlog",
   "conversation_id": "UUID string",
   "agent": "Agent",
   "intent": "Confirmed user intent",
+
+  "last_task": {
+    "id": "TASK-ID or null",
+    "status": "closed | open | ongoing",
+    "description": "Short description of the last task"
+  },
 
   "scope": {
     "target": "Relative path or named target"
@@ -43,6 +49,9 @@
 
   "workspace_state": {
     "observed_at": "ISO8601 with timezone offset",
+    "branch": "BRANCH_NAME",
+    "commit": "COMMIT_HASH",
+    "working_tree": "clean | dirty | X files modified",
     "git_status": "Observed git status summary"
   },
 
