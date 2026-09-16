@@ -1,12 +1,12 @@
 # LOKA Agent Operations & Knowledge Substrate
 
-The `.agents` directory serves as the encapsulated operational knowledge vault and autonomous skill execution substrate for the LOKA repository. Operating under the workspace contract (`../AGENTS.md`), it decouples knowledge retention, quality governance, and workflow automation from transient host runtime environments.
+The `.agents` directory serves as the encapsulated operational knowledge vault and autonomous skill execution substrate for the LOKA repository. Operating under the workspace contract (`./AGENTS.md`), it decouples knowledge retention, quality governance, and workflow automation from transient host runtime environments.
 
 ## Purpose
 
 The primary purpose of `.agents` is to provide a machine-actionable, persistent knowledge architecture paired with isolated, privilege-separated agent execution skills:
 
-1. **LOKA Knowledge Vault (`./loka-brain/`)**: A modular, machine-actionable knowledge repository governed by `./loka-brain/AGENTS.md` and `./loka-brain/schema.md` (v0.2.3). It enforces linear lifecycle progression (`draft` → `test` → `active`), single-domain purity across six canonical domains (`profiles`, `behaviors`, `standards`, `workflows`, `tools`, `meta`), strict AST-compatible wikilinks, de-identification of host paths, and complete runtime-vault decoupling.
+1. **LOKA Knowledge Vault (`./loka-brain/`)**: A modular, machine-actionable knowledge repository governed by `./AGENTS.md` and `./loka-brain/schema.md` (v0.2.3). It enforces linear lifecycle progression (`draft` → `test` → `active`), single-domain purity across six canonical domains (`profiles`, `behaviors`, `standards`, `workflows`, `tools`, `meta`), strict AST-compatible wikilinks, de-identification of host paths, and complete runtime-vault decoupling.
 2. **Specialized Agent Skills (`./skills/`)**: Modular agent capabilities delegated to handle specific workspace tasks:
    - `loka` (`./skills/loka/`): Dual-master orchestrator managing the Knowledge Artifact lifecycle via read-only minting and review subagents, an interactive SHA-256 cryptographic Human Gate, and a transactional write worker with automated rollback.
    - `loka-git-manager` (`./skills/loka-git-manager/`): Local Git operations manager enforcing pre-flight checks, atomic Conventional Commits, and staged secret/debug scans without external push dependencies.
@@ -26,7 +26,7 @@ The primary purpose of `.agents` is to provide a machine-actionable, persistent 
 
 | Subsystem / Component | Path | Responsibility |
 | :--- | :--- | :--- |
-| **Vault Operating Contract** | `./loka-brain/AGENTS.md` | Authoritative vault contract, custodian mandate, portability invariants, risk tiers, and lifecycle quality gates. |
+| **Workspace & Vault Operating Contract** | `./AGENTS.md` | Unified workspace contract, custodian mandate, portability invariants, risk tiers, knowledge architecture, and lifecycle quality gates. |
 | **Format Specification** | `./loka-brain/schema.md` | Normative structural schema (v0.2.3) governing frontmatter fields, canonical key ordering, and Markdown structure. |
 | **Master Knowledge Catalog** | `./loka-brain/index.md` | Progressive disclosure catalog with dynamic auto-index replacement boundaries. |
 | **LOKA Master Skill** | `./skills/loka/SKILL.md` | Dual-master pipeline orchestration, subagent privilege separation, and Human Gate enforcement. |

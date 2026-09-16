@@ -20,13 +20,12 @@ LOKA (Local Open Knowledge Artifact) is an open-source framework and knowledge g
 
 ```text
 loka-master/
-├── AGENTS.md                   # Workspace Operating Contract & Agent Governance
 ├── CHANGELOG.md                # Project release history & version tracking
 ├── README.md                   # Project overview & quickstart guide
 └── .agents/
+    ├── AGENTS.md               # Workspace & Vault Operating Contract (unified)
     ├── README.md               # Agent runtime architecture & subsystems overview
     ├── loka-brain/             # Encapsulated Knowledge Vault
-    │   ├── AGENTS.md           # Vault Operating Contract & Custodian Mandate
     │   ├── index.md            # Auto-generated Master Catalog (progressive disclosure)
     │   ├── schema.md           # Normative Knowledge Artifact Format Schema (v0.2.3)
     │   ├── behaviors/          # Behavioral rules & safety thresholds
