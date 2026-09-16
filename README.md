@@ -12,6 +12,7 @@ LOKA (Local Open Knowledge Artifact) is an open-source framework and knowledge g
 - **Runtime-Vault Decoupling:** Runtime tooling interacts with knowledge solely as a structural data substrate (AST parsing, frontmatter validation, link graphs), eliminating semantic coupling between host tooling and domain knowledge.
 - **Economical Context Retrieval:** Progressive disclosure via `./.agents/loka-brain/index.md` ensures agents load only the minimal 1–3 essential modules required for a task, preventing context window bloat.
 - **Autonomous Lifecycle Verification:** Built-in auditing engine (`audit.sh`) validates format purity, link integrity, de-identification, and security gates before any artifact reaches active status.
+- **Self-Contained Framework Substrate:** LOKA is fully encapsulated within `./.agents/`, eliminating root-level file conflicts and ensuring seamless embedding into diverse host repositories.
 - **Dedicated Agent Skills:** Pre-configured agent workflows for knowledge curation (`loka`), local Git commit hygiene (`loka-git-manager`), and structured session logging (`loka-log`).
 
 ---
@@ -34,10 +35,12 @@ loka-master/
     │   ├── workflows/          # Deterministic execution & review procedures
     │   ├── tools/              # Tooling policies & runtime constraints
     │   └── meta/               # Architectural records & governance
+    ├── memories/               # Session memory & factual audit ledgers
+    │   └── sessions/           # Structured JSON execution logs
     └── skills/
-        ├── loka/               # Knowledge minting, auditing, and indexing engine
-        ├── loka-git-manager/   # Local Git safety, pre-flight checks & commit hygiene
-        └── loka-log/           # Session memory, factual logging & context handover
+        ├── loka/               # Knowledge minting, auditing, and indexing engine (v0.2.1)
+        ├── loka-git-manager/   # Local Git safety, pre-flight checks & commit hygiene (v0.2.0)
+        └── loka-log/           # Session memory, factual logging & context handover (v0.2.7)
 ```
 
 ---
@@ -82,9 +85,9 @@ Every Knowledge Artifact transitions through three one-directional operational s
 
 ## Core Skills
 
-- **`loka`:** Governs the end-to-end lifecycle of Knowledge Artifacts. Coordinates subagents (`loka-mint-master`, `loka-writer`, `loka-review-master`) for deterministic minting, strict auditing, index maintenance, and promotion.
-- **`loka-git-manager`:** Enforces repository hygiene, atomic Conventional Commits, pre-flight branch checks, and sensitive data masking.
-- **`loka-log`:** Captures factual session progress, milestones, and active context handovers in `./.agents/memories/`.
+- **`loka` (v0.2.1):** Governs the end-to-end lifecycle of Knowledge Artifacts. Coordinates subagents (`loka-mint-master`, `loka-writer-worker`, `loka-review-master`) for deterministic minting, strict auditing, index maintenance, and promotion.
+- **`loka-git-manager` (v0.2.0):** Enforces repository hygiene, atomic Conventional Commits, pre-flight branch checks, and sensitive data masking.
+- **`loka-log` (v0.2.7):** Captures factual session progress, milestones, and active context handovers in `./.agents/memories/`.
 
 > [!TIP]
 > For a comprehensive architectural breakdown, sequence diagrams, and technical subsystem specifications of the execution runtime, see [`.agents/README.md`](./.agents/README.md).
