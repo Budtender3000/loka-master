@@ -1,6 +1,9 @@
 ---
 name: loka
-description: Master Orchestrator for LOKA Knowledge Artifacts (KAs). Governs schema.md v0.2.3 minting of new KAs and auditing, lifecycle promotion (draft→test→active), and deprecation of existing KAs using dual read-only masters and an explicit Human Gate with draft-hash verification. Use when the user wants to mint/document/archive findings ("add this to LOKA", "mint this", "document this pattern") or audit/review/promote KAs ("audit LOKA", "review this KA", "promote X").
+description: Master Orchestrator for LOKA Knowledge Artifacts (KAs). Governs schema.md minting of new KAs and auditing, lifecycle promotion (draft→test→active), and deprecation of existing KAs using dual read-only masters and an explicit Human Gate with draft-hash verification. Use when the user wants to mint/document/archive findings ("add this to LOKA", "mint this", "document this pattern") or audit/review/promote KAs ("audit LOKA", "review this KA", "promote X").
+type: skill
+version: 0.2.1
+owner: USER
 ---
 
 # loka — Dual-Master Orchestrator
