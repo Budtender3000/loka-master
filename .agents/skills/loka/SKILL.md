@@ -73,20 +73,22 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
 
 ## Directives
 
-### 1. Conceptual Delegation Pattern (Runtime-Neutral)
+### 1. Delegation & Payload Contract (Runtime-Neutral)
 
-1. **SELECT** the target master (`mint-master` or `review-master`) based on user intent.
-2. **LOAD** the system prompt from `agents/<target-master>.md`.
-3. **SPAWN** the Master Subagent in **read-only mode** (write capabilities strictly disabled).
-4. **RECEIVE** the evaluation payload (`STATUS: AWAITING_HUMAN`) containing:
-   - `TARGET_PATH`: The target file path in `./.agents/loka-brain/<domain>/`.
-   - `BASE_HASH`: The SHA-256 hash of the existing file (for merges) or `NONE` (for new mints).
-   - `BASE_CONTENT`: The full on-disk content of the existing file (for merges) or `NONE` (for new mints).
-   - `CANDIDATE_DRAFT`: Complete markdown content (for Mint) or transition diff (for Review).
-5. **DETERMINISTIC HASH & PRE-FLIGHT**: The parent orchestrator computes the cryptographic SHA-256 hash (`DRAFT_HASH`) directly from `CANDIDATE_DRAFT` using `sha256sum`, verifies zero trailing whitespace, and presents the candidate artifact, target path, calculated draft hash, and pre-flight findings to the user at the Human Gate. Read-only subagents must never hallucinate hashes.
-6. **HALT** execution and await explicit user confirmation.
-7. **SPAWN** the Write Worker (`agents/writer-worker.md`) with write privileges only after explicit user approval, passing `TARGET_PATH`, `BASE_HASH`, `BASE_CONTENT`, `DRAFT_CONTENT`, and the verified `DRAFT_HASH`.
-8. **CONFIRM** that Write Worker invoked `scripts/apply_mint.sh` which atomically enforced realpath containment, verified `DRAFT_HASH`, verified whitespace hygiene, wrote the file, executed `audit.sh` before `index.sh`, executed full vault audit, and guaranteed transactional rollback on failure.
+- **SELECT** target master (`mint-master` or `review-master`) per Mode Selection table.
+- **SPAWN** selected Master Subagent in read-only mode (write capabilities strictly disabled).
+- **TRANSFER** following payload from Master Subagent to Parent Orchestrator (`STATUS: AWAITING_HUMAN`):
+  - `TARGET_PATH`, `BASE_HASH` (`NONE` on new mints), `BASE_CONTENT` (`NONE` on new mints), `CANDIDATE_DRAFT`.
+- **COMPUTE** cryptographic `DRAFT_HASH` via `sha256sum` directly from `CANDIDATE_DRAFT`.
+- **VERIFY** zero trailing whitespace across `CANDIDATE_DRAFT`.
+- **PROHIBIT** read-only subagents from calculating, emitting, or hallucinating cryptographic hashes.
+- **PRESENT** `TARGET_PATH`, computed `DRAFT_HASH`, and candidate artifact to user at Human Gate.
+- **HALT** execution and await explicit user confirmation.
+- **DISPATCH** following payload from Orchestrator to Write Worker (`agents/writer-worker.md`) strictly post-approval:
+  - `TARGET_PATH`, `BASE_HASH`, `BASE_CONTENT`, `DRAFT_CONTENT`, verified `DRAFT_HASH`.
+- **ENFORCE** transactional execution through `scripts/apply_mint.sh` (realpath containment, hash verification, `audit.sh` before `index.sh`, full vault audit, automatic rollback).
+
+*(Consult Architectural Model diagram above for execution flow, pipeline branching, and privilege boundaries.)*
 
 ### 2. Runtime Implementation Reference (Antigravity CLI / AGY)
 
