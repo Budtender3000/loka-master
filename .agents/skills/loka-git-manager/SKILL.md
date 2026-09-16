@@ -1,6 +1,6 @@
 ---
 name: loka-git-manager
-description: Use for all local Git operations in any repository: pre-flight checks, atomic Conventional Commits, secret and debug scanning, dirty worktree recovery, and local tagging. Trigger whenever git commits, status verification, branch safety, or tags are needed.
+description: Use for all local Git operations in any repository; pre-flight checks, atomic Conventional Commits, secret and debug scanning, dirty worktree recovery, and local tagging. Trigger whenever git commits, status verification, branch safety, or tags are needed.
 type: skill
 version: 0.2.0
 owner: USER
