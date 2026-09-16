@@ -14,7 +14,7 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
 
 1. **RESOLVE** the canonical vault root:
    ```bash
-   VAULT_ROOT="$(readlink -f "./.agents/loka-brain" 2>/dev/null || readlink -f "./loka-brain" 2>/dev/null || readlink -f "./LOKA-brain")"
+   VAULT_ROOT="$(readlink -f "./.agents/loka-brain" 2>/dev/null || readlink -f "./loka-brain" 2>/dev/null)"
    ```
 2. **RESOLVE** the canonical target directory:
    ```bash

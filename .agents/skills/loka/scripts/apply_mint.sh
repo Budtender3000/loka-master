@@ -43,9 +43,6 @@ if [[ -z "$BRAIN_DIR" ]]; then
         if [[ -d "$check_dir/loka-brain" ]]; then
             BRAIN_DIR="$check_dir/loka-brain"
             break
-        elif [[ -d "$check_dir/LOKA-brain" ]]; then
-            BRAIN_DIR="$check_dir/LOKA-brain"
-            break
         fi
         check_dir="$(dirname "$check_dir")"
     done
@@ -55,9 +52,6 @@ if [[ -z "$BRAIN_DIR" || ! -d "$BRAIN_DIR" ]]; then
     fixed_depth_dir="$(cd "$SCRIPT_DIR/../../../loka-brain" 2>/dev/null && pwd || true)"
     if [[ -z "$fixed_depth_dir" || ! -d "$fixed_depth_dir" ]]; then
         fixed_depth_dir="$(cd "$SCRIPT_DIR/../../../../loka-brain" 2>/dev/null && pwd || true)"
-    fi
-    if [[ -z "$fixed_depth_dir" || ! -d "$fixed_depth_dir" ]]; then
-        fixed_depth_dir="$(cd "$SCRIPT_DIR/../../../../LOKA-brain" 2>/dev/null && pwd || true)"
     fi
     if [[ -n "$fixed_depth_dir" && -d "$fixed_depth_dir" ]]; then
         BRAIN_DIR="$fixed_depth_dir"
@@ -151,8 +145,8 @@ TARGET_DIR="$(dirname "$TARGET_PATH")"
 TARGET_FILENAME="$(basename "$TARGET_PATH")"
 
 if [[ ! "$TARGET_PATH" = /* ]]; then
-    if [[ "$TARGET_PATH" == "./LOKA-brain/"* || "$TARGET_PATH" == "LOKA-brain/"* ]]; then
-        TARGET_DIR_REL="${TARGET_DIR#*LOKA-brain/}"
+    if [[ "$TARGET_PATH" == "./loka-brain/"* || "$TARGET_PATH" == "loka-brain/"* ]]; then
+        TARGET_DIR_REL="${TARGET_DIR#*loka-brain/}"
         TARGET_DIR_ABS="$VAULT_ROOT/$TARGET_DIR_REL"
     else
         TARGET_DIR_ABS="$VAULT_ROOT/$TARGET_DIR"

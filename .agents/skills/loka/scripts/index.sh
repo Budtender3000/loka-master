@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# index.sh — Auto-Updating Index Generator for LOKA-brain Knowledge Artifacts
+# index.sh — Auto-Updating Index Generator for loka-brain Knowledge Artifacts
 # Implements schema.md v0.2.3 frontmatter contract with progressive disclosure
 # ==============================================================================
 set -euo pipefail
@@ -21,15 +21,12 @@ source "$LIB_PARSER"
 # Optional override: first positional arg, else $LOKA_BRAIN_ROOT env var
 BRAIN_DIR="${1:-${LOKA_BRAIN_ROOT:-}}"
 
-# If no override, walk up from script directory looking for 'loka-brain' or 'LOKA-brain'
+# If no override, walk up from script directory looking for 'loka-brain'
 if [[ -z "$BRAIN_DIR" ]]; then
     check_dir="$SCRIPT_DIR"
     while [[ "$check_dir" != "/" ]]; do
         if [[ -d "$check_dir/loka-brain" ]]; then
             BRAIN_DIR="$check_dir/loka-brain"
-            break
-        elif [[ -d "$check_dir/LOKA-brain" ]]; then
-            BRAIN_DIR="$check_dir/LOKA-brain"
             break
         fi
         check_dir="$(dirname "$check_dir")"
@@ -41,9 +38,6 @@ if [[ -z "$BRAIN_DIR" || ! -d "$BRAIN_DIR" ]]; then
     fixed_depth_dir="$(cd "$SCRIPT_DIR/../../../loka-brain" 2>/dev/null && pwd || true)"
     if [[ -z "$fixed_depth_dir" || ! -d "$fixed_depth_dir" ]]; then
         fixed_depth_dir="$(cd "$SCRIPT_DIR/../../../../loka-brain" 2>/dev/null && pwd || true)"
-    fi
-    if [[ -z "$fixed_depth_dir" || ! -d "$fixed_depth_dir" ]]; then
-        fixed_depth_dir="$(cd "$SCRIPT_DIR/../../../../LOKA-brain" 2>/dev/null && pwd || true)"
     fi
     if [[ -n "$fixed_depth_dir" && -d "$fixed_depth_dir" ]]; then
         BRAIN_DIR="$fixed_depth_dir"
@@ -73,7 +67,7 @@ for domain in "${DOMAINS[@]}"; do
 
     domain_entries=()
 
-    # Find all *.md files under LOKA-brain/<domain>/ (1 level deep)
+    # Find all *.md files under loka-brain/<domain>/ (1 level deep)
     while IFS= read -r file; do
         [[ -z "$file" ]] && continue
 

@@ -18,7 +18,7 @@ The skill manages the end-to-end lifecycle of Knowledge Artifacts across canonic
 - **Atomic Mutation Sequencing:** Executes pre-flight in-memory validation, realpath containment checks, write operations, automated mechanical auditing, and index regeneration in a strict sequence with rollback on error.
 - **Automated Mechanical Auditing:** Verifies frontmatter schemas, domain classification, path leakage, credential patterns, heading structures, and wikilink integrity via `scripts/audit.sh`.
 - **Two-Axis Lifecycle Governance:** Supports linear lifecycle promotion (`draft` → `test` → `active`) alongside orthogonal deprecation states (`deprecated: true|false`).
-- **Progressive Disclosure Indexing:** Dynamically regenerates progressive disclosure tables in `./LOKA-brain/index.md` between explicit marker boundaries using `scripts/index.sh`.
+- **Progressive Disclosure Indexing:** Dynamically regenerates progressive disclosure tables in `./.agents/loka-brain/index.md` between explicit marker boundaries using `scripts/index.sh`.
 - **Structured Frontmatter Parsing:** Shared POSIX/AWK library (`scripts/lib/parse_frontmatter.sh`) parses SCHEMA v0.2.3 frontmatter fields (4 mandatory, 7 optional) and validates YAML format requirements.
 
 ## Architecture And Components
@@ -35,7 +35,7 @@ The skill coordinates specialized subagent roles and shell utilities to manage a
 | `scripts/lib/parse_frontmatter.sh` | Shared shell library providing `parse_frontmatter()` using AWK to extract and validate frontmatter fields. | `scripts/lib/parse_frontmatter.sh` |
 | `scripts/apply_mint.sh` | Transactional CLI engine for atomic artifact minting, realpath containment, whitespace linting, and automated rollbacks. | `scripts/apply_mint.sh` |
 | `scripts/audit.sh` | CLI utility for automated structural checks, path/secret de-identification, markdown validation, and lifecycle transitions. | `scripts/audit.sh` |
-| `scripts/index.sh` | CLI utility for generating progressive disclosure tables in `./LOKA-brain/index.md`. | `scripts/index.sh` |
+| `scripts/index.sh` | CLI utility for generating progressive disclosure tables in `./.agents/loka-brain/index.md`. | `scripts/index.sh` |
 
 ### Orchestration Workflow
 
@@ -48,7 +48,7 @@ sequenceDiagram
     participant Review as Review Master (read-only)
     participant Writer as Writer Worker (write-privileged)
     participant Scripts as audit.sh / index.sh
-    participant Disk as Vault (./LOKA-brain/)
+    participant Disk as Vault (./.agents/loka-brain/)
 
     alt Mint Intent
         User->>Main: Mint request ("add this to LOKA", "mint this")
@@ -91,31 +91,34 @@ sequenceDiagram
 
 ## Canonical Taxonomy And Schema
 
-Knowledge Artifacts are categorized into 6 canonical domain folders within `./LOKA-brain/`:
+Knowledge Artifacts are categorized into 6 canonical domain folders within `./.agents/loka-brain/`:
 
-- `profiles`: Identity, tone, formatting standards, and persona specifications (`./LOKA-brain/profiles/`).
-- `behaviors`: Decision boundaries, fallbacks, and uncertainty handling (`./LOKA-brain/behaviors/`).
-- `standards`: Output schemas, quality gates, and format definitions (`./LOKA-brain/standards/`).
-- `workflows`: Multi-step processes, review pipelines, and operational sequences (`./LOKA-brain/workflows/`).
-- `tools`: Tool usage policies, subagent execution definitions, and CLI integration guidelines (`./LOKA-brain/tools/`).
-- `meta`: Vault taxonomy governance, versioning policies, and skill specifications (`./LOKA-brain/meta/`).
+- `profiles`: Identity, tone, formatting standards, and persona specifications (`./.agents/loka-brain/profiles/`).
+- `behaviors`: Decision boundaries, fallbacks, and uncertainty handling (`./.agents/loka-brain/behaviors/`).
+- `standards`: Output schemas, quality gates, and format definitions (`./.agents/loka-brain/standards/`).
+- `workflows`: Multi-step processes, review pipelines, and operational sequences (`./.agents/loka-brain/workflows/`).
+- `tools`: Tool usage policies, subagent execution definitions, and CLI integration guidelines (`./.agents/loka-brain/tools/`).
+- `meta`: Vault taxonomy governance, versioning policies, and skill specifications (`./.agents/loka-brain/meta/`).
 
-### Frontmatter Specification (SPEC v0.2.1)
+### Frontmatter Specification (SCHEMA v0.2.3)
 
-Every artifact must begin with an 8-field YAML frontmatter block:
+Every artifact must begin on line 1 with a YAML frontmatter block enclosed between `---` delimiters (4 mandatory fields, up to 7 optional fields):
 
-| Field | Type | Validation Rules |
-| :--- | :--- | :--- |
-| `id` | String | Lowercase snake_case matching `^[a-z0-9_]+$`. |
-| `name` | String | Plain string matching document `# <Title>` heading exactly. |
-| `type` | Enum | Must match domain folder: `profile`, `behavior`, `standard`, `workflow`, `tool`, or `meta`. |
-| `status` | Enum | Lifecycle state: `draft`, `test`, or `active`. Newly minted artifacts default to `draft`. |
-| `deprecated` | Boolean | Orthogonal state: `true` or `false`. |
-| `description` | String | Single-line summary (30–120 characters) displayed in index tables. |
-| `created` | String | Creation date in ISO-8601 format (`YYYY-MM-DD`). |
-| `owner` | String | Optional custodian identity (e.g., `owner: custodian`). |
+| Field Name | Requirement | Type / Format | Validation Constraint |
+|---|---|---|---|
+| `id` | Mandatory | String (`^[a-z0-9-]+$`) | Unique lowercase `kebab-case` identifier. Must match the filename stem exactly without conversion. |
+| `name` | Mandatory | String (UTF-8) | Human-readable artifact title. Must match the level-1 Markdown heading (`# <Title>`) verbatim. |
+| `type` | Mandatory | Enum String | Canonical domain: `profile`, `behavior`, `standard`, `workflow`, `tool`, `meta`. Must match the parent domain folder name in singular form. |
+| `description` | Mandatory | String (UTF-8) | Non-empty concise single-line description surfaced in index catalogs (`index.md`) for progressive disclosure. |
+| `status` | Optional | Enum String | Operational lifecycle status: `draft`, `test`, `active`. If omitted, the artifact is treated as unpromoted working draft. |
+| `deprecated` | Optional | Boolean Literal | Supersession flag: `false` or `true`. Defaults to `false` if omitted. |
+| `created` | Optional | ISO-8601 Date (`YYYY-MM-DD`) | Creation date matching `^[0-9]{4}-[0-9]{2}-[0-9]{2}$`. Emitted unquoted. |
+| `stale_after` | Optional | ISO-8601 Date (`YYYY-MM-DD`) | OKF v0.2 Freshness trust signal matching `^[0-9]{4}-[0-9]{2}-[0-9]{2}$`. Emitted unquoted. |
+| `owner` | Optional | String (UTF-8) | Custodian tracking identifier (e.g. `custodian`). |
+| `verified` | Optional | Enum String | OKF v0.2 Trustworthiness signal: `human`, `attested`, or `automated`. Emitted unquoted. |
+| `sources` | Optional | Inline Array (`["..."]`) | OKF v0.2 Provenance signal: inline JSON/YAML array of URI or source references matching `^\[.*\]$`. |
 
-*Note: The legacy `time` field is strictly prohibited under SPEC v0.2.1.*
+*Note: The legacy `time` field is strictly prohibited under SCHEMA v0.2.3.*
 
 ## Tooling And CLI Interfaces
 
@@ -128,29 +131,29 @@ Automates structural validation, redaction checks, and lifecycle state changes:
 ./scripts/audit.sh --all
 
 # Audit a single artifact
-./scripts/audit.sh ./LOKA-brain/standards/example-standard.md
+./scripts/audit.sh ./.agents/loka-brain/standards/example-standard.md
 
 # Promote an artifact along the linear lifecycle (draft -> test -> active)
-./scripts/audit.sh --promote ./LOKA-brain/standards/example-standard.md
+./scripts/audit.sh --promote ./.agents/loka-brain/standards/example-standard.md
 
 # Promote all eligible artifacts passing audit
 ./scripts/audit.sh --promote-all
 
 # Toggle deprecation status
-./scripts/audit.sh --deprecate ./LOKA-brain/standards/example-standard.md
-./scripts/audit.sh --undeprecate ./LOKA-brain/standards/example-standard.md
+./scripts/audit.sh --deprecate ./.agents/loka-brain/standards/example-standard.md
+./scripts/audit.sh --undeprecate ./.agents/loka-brain/standards/example-standard.md
 ```
 
 ### Vault Index Generator (`scripts/index.sh`)
 
-Regenerates the catalog in `./LOKA-brain/index.md` between `<!-- AUTO-INDEX:START -->` and `<!-- AUTO-INDEX:END -->` markers:
+Regenerates the catalog in `./.agents/loka-brain/index.md` between `<!-- AUTO-INDEX:START -->` and `<!-- AUTO-INDEX:END -->` markers:
 
 ```bash
 # Update index using discovery fallback
 ./scripts/index.sh
 
 # Update index with explicit brain root path
-./scripts/index.sh /path/to/LOKA-brain
+./scripts/index.sh /path/to/.agents/loka-brain
 ```
 
 ### Shared Frontmatter Parser (`scripts/lib/parse_frontmatter.sh`)
@@ -163,12 +166,12 @@ source ./scripts/lib/parse_frontmatter.sh
 parse_frontmatter "$target_file"
 
 # Direct CLI execution
-./scripts/lib/parse_frontmatter.sh ./LOKA-brain/standards/example-standard.md
+./scripts/lib/parse_frontmatter.sh ./.agents/loka-brain/standards/example-standard.md
 ```
 
 ### Environment Variables
 
-- `LOKA_BRAIN_ROOT`: Optional vault path override. When unset, scripts search upward for `loka-brain` or `LOKA-brain` or fall back to `../../../../loka-brain`.
+- `LOKA_BRAIN_ROOT`: Optional vault path override. When unset, scripts search upward for `loka-brain` or fall back to `../../../../loka-brain`.
 - `TMPDIR`: Temporary directory used for atomic backup and replacement during mutations (defaults to `/tmp`).
 
 ## Important Notes And Limitations

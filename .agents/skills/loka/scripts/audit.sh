@@ -75,9 +75,6 @@ if [[ -z "$BRAIN_DIR" ]]; then
         if [[ -d "$check_dir/loka-brain" ]]; then
             BRAIN_DIR="$check_dir/loka-brain"
             break
-        elif [[ -d "$check_dir/LOKA-brain" ]]; then
-            BRAIN_DIR="$check_dir/LOKA-brain"
-            break
         fi
         check_dir="$(dirname "$check_dir")"
     done
@@ -87,9 +84,6 @@ if [[ -z "$BRAIN_DIR" || ! -d "$BRAIN_DIR" ]]; then
     fixed_depth_dir="$(cd "$SCRIPT_DIR/../../../loka-brain" 2>/dev/null && pwd || true)"
     if [[ -z "$fixed_depth_dir" || ! -d "$fixed_depth_dir" ]]; then
         fixed_depth_dir="$(cd "$SCRIPT_DIR/../../../../loka-brain" 2>/dev/null && pwd || true)"
-    fi
-    if [[ -z "$fixed_depth_dir" || ! -d "$fixed_depth_dir" ]]; then
-        fixed_depth_dir="$(cd "$SCRIPT_DIR/../../../../LOKA-brain" 2>/dev/null && pwd || true)"
     fi
     if [[ -n "$fixed_depth_dir" && -d "$fixed_depth_dir" ]]; then
         BRAIN_DIR="$fixed_depth_dir"
@@ -593,7 +587,7 @@ validate_target() {
     fi
 
     if [[ -z "$real_brain" || ! -d "$real_brain" ]]; then
-        echo -e "\n${BOLD}${RED}[BLOCKED] Cannot resolve LOKA-brain directory:${NC} $BRAIN_DIR" >&2
+        echo -e "\n${BOLD}${RED}[BLOCKED] Cannot resolve loka-brain directory:${NC} $BRAIN_DIR" >&2
         return 1
     fi
 
@@ -807,10 +801,10 @@ usage() {
     echo "  -h, --help            Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0 ./LOKA-brain/profiles/copilot-operational-profile.md"
+    echo "  $0 ./.agents/loka-brain/profiles/copilot-operational-profile.md"
     echo "  $0 --all"
-    echo "  $0 --promote ./LOKA-brain/workflows/dynamic-execution-workflow.md"
-    echo "  $0 --deprecate ./LOKA-brain/tools/legacy-tool-policy.md"
+    echo "  $0 --promote ./.agents/loka-brain/workflows/dynamic-execution-workflow.md"
+    echo "  $0 --deprecate ./.agents/loka-brain/tools/legacy-tool-policy.md"
     exit 0
 }
 
