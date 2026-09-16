@@ -21,6 +21,7 @@ LOKA (Local Open Knowledge Artifact) is an open-source framework and knowledge g
 
 ```text
 loka-master/
+├── AGENTS.md                   # External agent bootstrap & interoperability gateway
 ├── CHANGELOG.md                # Project release history & version tracking
 ├── README.md                   # Project overview & quickstart guide
 └── .agents/
