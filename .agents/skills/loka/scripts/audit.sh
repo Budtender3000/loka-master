@@ -95,7 +95,30 @@ INDEX_SCRIPT="$SCRIPT_DIR/index.sh"
 DOMAINS=("${CANONICAL_DOMAINS[@]}")
 
 LOCK_FILE="$BRAIN_DIR/.loka.lock"
-if [[ -z "${LOKA_LOCK_HELD:-}" ]]; then
+
+is_lock_fd_valid() {
+    # Check if FD 200 is open
+    if ! { true >&200; } 2>/dev/null; then
+        return 1
+    fi
+    # If /proc is available, verify FD 200 references LOCK_FILE
+    if [[ -d /proc/self/fd ]]; then
+        local fd_target real_lock
+        fd_target="$(readlink -f /proc/self/fd/200 2>/dev/null || true)"
+        real_lock="$(readlink -f "$LOCK_FILE" 2>/dev/null || true)"
+        if [[ -z "$fd_target" || -z "$real_lock" || "$fd_target" != "$real_lock" ]]; then
+            return 1
+        fi
+    fi
+    # Verify that an exclusive lock is actually held on LOCK_FILE
+    # If a separate probe FD can acquire an exclusive lock, then no lock is currently held.
+    if ( flock -n 9 ) 9<"$LOCK_FILE" 2>/dev/null; then
+        return 1
+    fi
+    return 0
+}
+
+if [[ -z "${LOKA_LOCK_HELD:-}" ]] || ! is_lock_fd_valid; then
     exec 200>"$LOCK_FILE"
     flock -x 200
     export LOKA_LOCK_HELD=1
@@ -118,7 +141,7 @@ audit_file() {
 
     # Read metadata via shared parser
     local id="" name="" type="" status="" deprecated="" description="" created="" stale_after="" owner="" verified="" sources=""
-    local fm_start=0 fm_end=0 expected_end=0 err="" err_delimiter="" err_order="" unknown_keys="" missing_fields=""
+    local fm_start=0 fm_end=0 expected_end=0 err="" err_delimiter="" err_order="" err_duplicate="" err_unknown="" err_comments="" err_blank="" err_malformed="" unknown_keys="" missing_fields=""
     local has_id=0 has_name=0 has_type=0 has_status=0 has_deprecated=0 has_description=0 has_created=0 has_stale_after=0 has_owner=0 has_verified=0 has_sources=0
 
     while IFS='=' read -r k v; do
@@ -140,6 +163,11 @@ audit_file() {
             ERR) err="$v" ;;
             ERR_DELIMITER) err_delimiter="$v" ;;
             ERR_ORDER) err_order="$v" ;;
+            ERR_DUPLICATE) err_duplicate="$v" ;;
+            ERR_UNKNOWN) err_unknown="$v" ;;
+            ERR_COMMENTS) err_comments="$v" ;;
+            ERR_BLANK) err_blank="$v" ;;
+            ERR_MALFORMED) err_malformed="$v" ;;
             UNKNOWN_KEYS) unknown_keys="$v" ;;
             MISSING_FIELDS) missing_fields="$v" ;;
             HAS_ID) has_id="$v" ;;
@@ -169,6 +197,21 @@ audit_file() {
         pass "YAML frontmatter delimiters valid (line 1 to line ${fm_end})"
     else
         fail "YAML frontmatter delimiter error (closing delimiter missing or invalid)"
+    fi
+
+    # Malformed frontmatter lines
+    if [[ -n "$err_malformed" ]]; then
+        fail "YAML frontmatter syntax error (malformed line)" "$err_malformed"
+    fi
+
+    # Prohibited comments
+    if [[ -n "$err_comments" ]]; then
+        fail "YAML frontmatter comment violation (comments prohibited)" "$err_comments"
+    fi
+
+    # Prohibited blank lines
+    if [[ -n "$err_blank" ]]; then
+        fail "YAML frontmatter blank line violation (blank lines prohibited)" "$err_blank"
     fi
 
     # Key ordering enforcement
@@ -240,28 +283,59 @@ audit_file() {
         pass "Optional provenance field 'sources' omitted (valid)"
     fi
 
-    # Schema purity enforcement (undeclared keys non-compliant)
-    if [[ -n "$unknown_keys" ]]; then
-        fail "Frontmatter schema purity violation (undeclared keys prohibited)" "$unknown_keys"
-    else
+    # Schema purity enforcement (duplicate and undeclared keys prohibited)
+    if [[ -n "$err_duplicate" ]]; then
+        fail "Frontmatter schema purity violation (duplicate keys prohibited)" "$err_duplicate"
+    fi
+
+    if [[ -n "$err_unknown" || -n "$unknown_keys" ]]; then
+        fail "Frontmatter schema purity violation (undeclared keys prohibited)" "${err_unknown:-$unknown_keys}"
+    fi
+
+    if [[ -z "$err_duplicate" && -z "$err_unknown" && -z "$unknown_keys" ]]; then
         pass "Frontmatter schema purity verified (zero undeclared keys)"
     fi
 
-    # Syntax & format passes (validated by shared parser ERR)
+    # Syntax & format checks
     if [[ "$has_id" -eq 1 && -n "$id" ]]; then
-        pass "Identifier ('$id') is valid kebab-case"
+        if [[ "$id" =~ ^[a-z0-9-]+$ ]]; then
+            pass "Identifier ('$id') is valid kebab-case"
+        else
+            fail "Identifier ('$id') must be lowercase kebab-case (^[a-z0-9-]+$)"
+        fi
     fi
 
     if [[ "$has_type" -eq 1 && -n "$type" ]]; then
-        pass "Type ('$type') is a valid canonical domain"
+        local resolved_domain
+        resolved_domain="$(type_to_domain "$type")"
+        if [[ -n "$resolved_domain" ]]; then
+            pass "Type ('$type') is a valid canonical domain"
+        else
+            local types_list="$(printf ", %s" "${CANONICAL_TYPES[@]}")"
+            fail "Type ('$type') invalid. Must be one of: ${types_list:2}"
+        fi
     fi
 
     if [[ "$has_status" -eq 1 && -n "$status" ]]; then
-        pass "Status ('$status') is valid (draft|test|active)"
+        case "$status" in
+            draft|test|active)
+                pass "Status ('$status') is valid (draft|test|active)"
+                ;;
+            *)
+                fail "Status ('$status') invalid. Must be one of: draft, test, active"
+                ;;
+        esac
     fi
 
     if [[ "$has_deprecated" -eq 1 && -n "$deprecated" ]]; then
-        pass "Deprecated flag ('$deprecated') is valid boolean"
+        case "$deprecated" in
+            true|false)
+                pass "Deprecated flag ('$deprecated') is valid boolean"
+                ;;
+            *)
+                fail "Deprecated flag ('$deprecated') invalid. Must be boolean literal true or false"
+                ;;
+        esac
     fi
 
     if [[ "$has_description" -eq 1 && -n "$description" ]]; then
@@ -269,7 +343,11 @@ audit_file() {
     fi
 
     if [[ "$has_created" -eq 1 && -n "$created" ]]; then
-        pass "Created date ('$created') is valid ISO-8601 (YYYY-MM-DD)"
+        if [[ "$created" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            pass "Created date ('$created') is valid ISO-8601 (YYYY-MM-DD)"
+        else
+            fail "Created date ('$created') invalid. Must match YYYY-MM-DD"
+        fi
     fi
 
     # --- Dimension 2: Domain Taxonomy & Boundary ---
@@ -300,6 +378,8 @@ audit_file() {
         else
             fail "Domain mismatch: file is in '$parent_dir/', but type is '$type' (expected '$expected_domain/')"
         fi
+    else
+        fail "Domain alignment failed: type '$type' is invalid or has no canonical domain mapping"
     fi
 
     # --- Dimensions 3, 4, 5: Body Analysis ---
@@ -594,6 +674,11 @@ audit_file() {
 validate_target() {
     local target="$1"
 
+    if [[ -L "$target" ]]; then
+        echo -e "\n${BOLD}${RED}[BLOCKED] Target is a symlink (symlinked artifacts are prohibited):${NC} $target" >&2
+        return 1
+    fi
+
     if [[ ! -f "$target" ]]; then
         echo -e "\n${BOLD}${RED}[BLOCKED] Target does not exist:${NC} $target" >&2
         return 1
@@ -709,14 +794,44 @@ promote_file() {
     target_dir="$(dirname "$target_file")"
     target_file_base="$(basename "$target_file")"
 
-    local backup_file
+    local backup_file="" temp_file=""
+    local mutation_applied=false index_synced=false
+
+    cleanup_promote() {
+        local sig="${1:-EXIT}"
+        if [[ -n "${temp_file:-}" && -f "$temp_file" ]]; then
+            rm -f "$temp_file"
+        fi
+        if [[ -n "${backup_file:-}" && -f "$backup_file" ]]; then
+            rm -f "$backup_file"
+        fi
+        if [[ "$mutation_applied" == true && "$index_synced" == false ]]; then
+            echo -e "\n${BOLD}${RED}[INCONSISTENT STATE] Operation interrupted after artifact mutation but before index synchronization completed!${NC}" >&2
+            echo -e "${RED}Target artifact '${target_file}' is modified, but index.md was not refreshed. Run index.sh to resolve.${NC}" >&2
+        fi
+        if [[ "$sig" != "EXIT" ]]; then
+            trap - EXIT INT TERM HUP
+            local signum=1
+            case "$sig" in
+                INT) signum=2 ;;
+                TERM) signum=15 ;;
+                HUP) signum=1 ;;
+            esac
+            exit $((128 + signum))
+        fi
+    }
+
+    trap 'cleanup_promote EXIT' EXIT
+    trap 'cleanup_promote INT' INT
+    trap 'cleanup_promote TERM' TERM
+    trap 'cleanup_promote HUP' HUP
+
     backup_file="$(mktemp "$target_dir/${target_file_base}.bak.XXXXXX")"
     cp -p "$target_file" "$backup_file"
 
-    # Mutate status in frontmatter (leaving deprecated untouched)
-    local temp_file
     temp_file="$(mktemp "$target_dir/${target_file_base}.tmp.XXXXXX")"
     chmod --reference="$target_file" "$temp_file" 2>/dev/null || true
+
     awk -v next_st="$next_status" '
     BEGIN { in_fm = 0; fm_count = 0 }
     /^---[ \t\r]*$/ {
@@ -732,6 +847,7 @@ promote_file() {
     ' "$target_file" > "$temp_file"
 
     mv -T "$temp_file" "$target_file"
+    mutation_applied=true
     echo -e "\n${BOLD}${GREEN}[SUCCESS] Status updated:${NC} ${current_status} → ${next_status} (${target_file})"
 
     # Refresh master index
@@ -739,10 +855,15 @@ promote_file() {
     if ! bash "$INDEX_SCRIPT" "$BRAIN_DIR"; then
         echo -e "${BOLD}${RED}[ERROR] Master index generation failed via ${INDEX_SCRIPT}. Rolling back promotion.${NC}" >&2
         mv -f "$backup_file" "$target_file"
+        mutation_applied=false
+        trap - EXIT INT TERM HUP
+        rm -f "$backup_file"
         return 1
     fi
+    index_synced=true
     echo -e "${GREEN}Index synchronized successfully.${NC}"
 
+    trap - EXIT INT TERM HUP
     rm -f "$backup_file"
     return 0
 }
@@ -759,10 +880,11 @@ set_deprecation_flag() {
         return 1
     fi
 
-    local current_dep=""
+    local current_dep="" has_dep=0
     while IFS='=' read -r k v; do
         case "$k" in
             DEPRECATED) current_dep="$v" ;;
+            HAS_DEPRECATED) has_dep="$v" ;;
         esac
     done < <(parse_frontmatter "$target_file")
 
@@ -775,40 +897,71 @@ set_deprecation_flag() {
     target_dir="$(dirname "$target_file")"
     target_file_base="$(basename "$target_file")"
 
-    local backup_file
+    local backup_file="" temp_file=""
+    local mutation_applied=false index_synced=false
+
+    cleanup_deprecate() {
+        local sig="${1:-EXIT}"
+        if [[ -n "${temp_file:-}" && -f "$temp_file" ]]; then
+            rm -f "$temp_file"
+        fi
+        if [[ -n "${backup_file:-}" && -f "$backup_file" ]]; then
+            rm -f "$backup_file"
+        fi
+        if [[ "$mutation_applied" == true && "$index_synced" == false ]]; then
+            echo -e "\n${BOLD}${RED}[INCONSISTENT STATE] Operation interrupted after artifact mutation but before index synchronization completed!${NC}" >&2
+            echo -e "${RED}Target artifact '${target_file}' is modified, but index.md was not refreshed. Run index.sh to resolve.${NC}" >&2
+        fi
+        if [[ "$sig" != "EXIT" ]]; then
+            trap - EXIT INT TERM HUP
+            local signum=1
+            case "$sig" in
+                INT) signum=2 ;;
+                TERM) signum=15 ;;
+                HUP) signum=1 ;;
+            esac
+            exit $((128 + signum))
+        fi
+    }
+
+    trap 'cleanup_deprecate EXIT' EXIT
+    trap 'cleanup_deprecate INT' INT
+    trap 'cleanup_deprecate TERM' TERM
+    trap 'cleanup_deprecate HUP' HUP
+
     backup_file="$(mktemp "$target_dir/${target_file_base}.bak.XXXXXX")"
     cp -p "$target_file" "$backup_file"
 
-    local temp_file
     temp_file="$(mktemp "$target_dir/${target_file_base}.tmp.XXXXXX")"
     chmod --reference="$target_file" "$temp_file" 2>/dev/null || true
-    awk -v new_val="$new_dep_val" '
-    BEGIN { in_fm = 0; fm_count = 0; found = 0 }
+
+    awk -v new_val="$new_dep_val" -v has_dep="$has_dep" '
+    BEGIN { in_fm = 0; fm_count = 0; replaced = 0 }
     /^---[ \t\r]*$/ {
         fm_count++
         if (fm_count == 1) { in_fm = 1; print; next }
         if (fm_count == 2) {
-            if (!found) {
+            if (!replaced && !has_dep) {
                 print "deprecated: " new_val
-                found = 1
+                replaced = 1
             }
             in_fm = 0; print; next
         }
     }
     in_fm && /^[ \t]*deprecated:[ \t]*/ {
         print "deprecated: " new_val
-        found = 1
+        replaced = 1
         next
     }
-    in_fm && !found && /^[ \t]*status:[ \t]*/ {
+    in_fm && !has_dep && !replaced && /^[ \t]*status:[ \t]*/ {
         print
         print "deprecated: " new_val
-        found = 1
+        replaced = 1
         next
     }
-    in_fm && !found && /^[ \t]*description:[ \t]*/ {
+    in_fm && !has_dep && !replaced && /^[ \t]*description:[ \t]*/ {
         print "deprecated: " new_val
-        found = 1
+        replaced = 1
         print
         next
     }
@@ -826,22 +979,29 @@ set_deprecation_flag() {
 
     if [[ -n "$verify_order_err" || -n "$verify_err" ]]; then
         echo -e "${BOLD}${RED}[ERROR] Frontmatter verification failed on updated deprecation flag: ${verify_order_err:-$verify_err}${NC}" >&2
+        trap - EXIT INT TERM HUP
         rm -f "$temp_file"
         rm -f "$backup_file"
         return 1
     fi
 
     mv -T "$temp_file" "$target_file"
+    mutation_applied=true
     echo -e "\n${BOLD}${GREEN}[SUCCESS] Deprecation flag updated:${NC} deprecated: ${new_dep_val} (${target_file})"
 
     echo -e "Refreshing master catalog at ${CYAN}${BRAIN_DIR}/index.md${NC}..."
     if ! bash "$INDEX_SCRIPT" "$BRAIN_DIR"; then
         echo -e "${BOLD}${RED}[ERROR] Master index generation failed via ${INDEX_SCRIPT}. Rolling back change.${NC}" >&2
         mv -f "$backup_file" "$target_file"
+        mutation_applied=false
+        trap - EXIT INT TERM HUP
+        rm -f "$backup_file"
         return 1
     fi
+    index_synced=true
     echo -e "${GREEN}Index synchronized successfully.${NC}"
 
+    trap - EXIT INT TERM HUP
     rm -f "$backup_file"
     return 0
 }
@@ -850,6 +1010,7 @@ set_deprecation_flag() {
 # 5. CLI Execution Dispatcher
 # ------------------------------------------------------------------------------
 usage() {
+    local exit_code="${1:-0}"
     echo -e "${BOLD}Usage:${NC} $0 [options] [file]"
     echo ""
     echo "Options:"
@@ -865,7 +1026,7 @@ usage() {
     echo "  $0 --all"
     echo "  $0 --promote ./.agents/loka-brain/workflows/dynamic-execution-workflow.md"
     echo "  $0 --deprecate ./.agents/loka-brain/tools/legacy-tool-policy.md"
-    exit 0
+    exit "$exit_code"
 }
 
 AUDIT_ALL=false
@@ -889,7 +1050,7 @@ else
                 shift
                 if [[ $# -eq 0 || "$1" == -* ]]; then
                     echo -e "${RED}Error: --promote requires a target file path.${NC}" >&2
-                    usage
+                    usage 1
                 fi
                 TARGET_FILES+=("$1")
                 shift
@@ -903,7 +1064,7 @@ else
                 shift
                 if [[ $# -eq 0 || "$1" == -* ]]; then
                     echo -e "${RED}Error: --deprecate requires a target file path.${NC}" >&2
-                    usage
+                    usage 1
                 fi
                 TARGET_FILES+=("$1")
                 shift
@@ -913,17 +1074,17 @@ else
                 shift
                 if [[ $# -eq 0 || "$1" == -* ]]; then
                     echo -e "${RED}Error: --undeprecate requires a target file path.${NC}" >&2
-                    usage
+                    usage 1
                 fi
                 TARGET_FILES+=("$1")
                 shift
                 ;;
             -h|--help)
-                usage
+                usage 0
                 ;;
             -*)
                 echo -e "${RED}Error: Unrecognized option '$1'.${NC}" >&2
-                usage
+                usage 1
                 ;;
             *)
                 TARGET_FILES+=("$1")
@@ -942,49 +1103,51 @@ mode_count=0
 
 if [[ $mode_count -gt 1 ]]; then
     echo -e "${RED}Error: Mutually exclusive options specified. Cannot combine --all, --promote, --promote-all, --deprecate, --undeprecate.${NC}" >&2
-    usage
+    usage 1
 fi
 
 if [[ "$AUDIT_ALL" == true && ${#TARGET_FILES[@]} -gt 0 ]]; then
     echo -e "${RED}Error: Cannot combine --all with explicitly passed file paths.${NC}" >&2
-    usage
+    usage 1
 fi
 
 if [[ "$PROMOTE_ALL" == true && ${#TARGET_FILES[@]} -gt 0 ]]; then
     echo -e "${RED}Error: Cannot combine --promote-all with explicitly passed file paths.${NC}" >&2
-    usage
+    usage 1
 fi
 
 # Check for non-canonical markdown files under vault root
 stray_md_files=()
-while IFS= read -r f; do
-    [[ -z "$f" ]] && continue
-    rel="${f#$BRAIN_DIR/}"
-    if [[ "$rel" != *"/"* ]]; then
-        case "$rel" in
-            index.md|schema.md|README.md|AGENTS.md)
-                ;;
-            *)
-                stray_md_files+=("$rel (stray markdown file at vault root)")
-                ;;
-        esac
-    else
-        domain="${rel%%/*}"
-        subpath="${rel#*/}"
-        is_canonical=false
-        for d in "${DOMAINS[@]}"; do
-            if [[ "$domain" == "$d" ]]; then
-                is_canonical=true
-                break
+if [[ "$AUDIT_ALL" == true || "$PROMOTE_ALL" == true ]]; then
+    while IFS= read -r f; do
+        [[ -z "$f" ]] && continue
+        rel="${f#$BRAIN_DIR/}"
+        if [[ "$rel" != *"/"* ]]; then
+            case "$rel" in
+                index.md|schema.md|README.md|AGENTS.md)
+                    ;;
+                *)
+                    stray_md_files+=("$rel (stray markdown file at vault root)")
+                    ;;
+            esac
+        else
+            domain="${rel%%/*}"
+            subpath="${rel#*/}"
+            is_canonical=false
+            for d in "${DOMAINS[@]}"; do
+                if [[ "$domain" == "$d" ]]; then
+                    is_canonical=true
+                    break
+                fi
+            done
+            if [[ "$is_canonical" != true ]]; then
+                stray_md_files+=("$rel (non-canonical domain directory '$domain')")
+            elif [[ "$subpath" == *"/"* ]]; then
+                stray_md_files+=("$rel (forbidden nested subdirectory under domain '$domain')")
             fi
-        done
-        if [[ "$is_canonical" != true ]]; then
-            stray_md_files+=("$rel (non-canonical domain directory '$domain')")
-        elif [[ "$subpath" == *"/"* ]]; then
-            stray_md_files+=("$rel (forbidden nested subdirectory under domain '$domain')")
         fi
-    fi
-done < <(find "$BRAIN_DIR" -type f -name "*.md" | sort)
+    done < <(find "$BRAIN_DIR" -type f -name "*.md" | sort)
+fi
 
 if [[ "$AUDIT_ALL" == true || "$PROMOTE_ALL" == true ]]; then
     TARGET_FILES=()
@@ -1025,12 +1188,14 @@ echo -e "Artifacts:  ${#TARGET_FILES[@]}"
 
 EXIT_CODE=0
 
-if [[ ${#stray_md_files[@]} -gt 0 ]]; then
-    echo -e "\n  ${BOLD}Vault Structure Audit:${NC}"
-    for stray in "${stray_md_files[@]}"; do
-        fail "Non-canonical markdown file in vault" "$stray"
-    done
-    EXIT_CODE=1
+if [[ "$AUDIT_ALL" == true || "$PROMOTE_ALL" == true ]]; then
+    if [[ ${#stray_md_files[@]} -gt 0 ]]; then
+        echo -e "\n  ${BOLD}Vault Structure Audit:${NC}"
+        for stray in "${stray_md_files[@]}"; do
+            fail "Non-canonical markdown file in vault" "$stray"
+        done
+        EXIT_CODE=1
+    fi
 fi
 
 if [[ "$PROMOTE_MODE" == true ]]; then

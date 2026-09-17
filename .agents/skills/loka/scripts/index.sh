@@ -51,7 +51,30 @@ fi
 
 # Vault-wide concurrency lock
 LOCK_FILE="$BRAIN_DIR/.loka.lock"
-if [[ -z "${LOKA_LOCK_HELD:-}" ]]; then
+
+is_lock_fd_valid() {
+    # Check if FD 200 is open
+    if ! { true >&200; } 2>/dev/null; then
+        return 1
+    fi
+    # If /proc is available, verify FD 200 references LOCK_FILE
+    if [[ -d /proc/self/fd ]]; then
+        local fd_target real_lock
+        fd_target="$(readlink -f /proc/self/fd/200 2>/dev/null || true)"
+        real_lock="$(readlink -f "$LOCK_FILE" 2>/dev/null || true)"
+        if [[ -z "$fd_target" || -z "$real_lock" || "$fd_target" != "$real_lock" ]]; then
+            return 1
+        fi
+    fi
+    # Verify that an exclusive lock is actually held on LOCK_FILE
+    # If a separate probe FD can acquire an exclusive lock, then no lock is currently held.
+    if ( flock -n 9 ) 9<"$LOCK_FILE" 2>/dev/null; then
+        return 1
+    fi
+    return 0
+}
+
+if [[ -z "${LOKA_LOCK_HELD:-}" ]] || ! is_lock_fd_valid; then
     exec 200>"$LOCK_FILE"
     flock -x 200
     export LOKA_LOCK_HELD=1
@@ -133,6 +156,13 @@ for domain in "${DOMAINS[@]}"; do
         [[ -z "$file" ]] && continue
 
         err=""
+        err_delimiter=""
+        err_order=""
+        err_duplicate=""
+        err_unknown=""
+        err_comments=""
+        err_blank=""
+        err_malformed=""
         id=""
         name=""
         type=""
@@ -144,6 +174,13 @@ for domain in "${DOMAINS[@]}"; do
         while IFS='=' read -r k v; do
             case "$k" in
                 ERR) err="$v" ;;
+                ERR_DELIMITER) err_delimiter="$v" ;;
+                ERR_ORDER) err_order="$v" ;;
+                ERR_DUPLICATE) err_duplicate="$v" ;;
+                ERR_UNKNOWN) err_unknown="$v" ;;
+                ERR_COMMENTS) err_comments="$v" ;;
+                ERR_BLANK) err_blank="$v" ;;
+                ERR_MALFORMED) err_malformed="$v" ;;
                 ID) id="$v" ;;
                 NAME) name="$v" ;;
                 TYPE) type="$v" ;;
@@ -154,8 +191,9 @@ for domain in "${DOMAINS[@]}"; do
             esac
         done < <(parse_frontmatter "$file")
 
-        if [[ -n "$err" ]]; then
-            echo "ERROR in '$file': $err" >&2
+        if [[ -n "$err" || -n "$err_delimiter" || -n "$err_order" || -n "$err_duplicate" || -n "$err_unknown" || -n "$err_comments" || -n "$err_blank" || -n "$err_malformed" ]]; then
+            specific_err="${err_delimiter:-${err_malformed:-${err_comments:-${err_blank:-${err_duplicate:-${err_unknown:-${err_order:-$err}}}}}}}"
+            echo "ERROR in '$file': $specific_err" >&2
             has_error=true
             continue
         fi

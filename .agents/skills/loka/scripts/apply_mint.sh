@@ -35,8 +35,6 @@ log_warn() { echo -e "  [${YELLOW}WARN${NC}] $*"; }
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 AUDIT_SCRIPT="$SCRIPT_DIR/audit.sh"
 INDEX_SCRIPT="$SCRIPT_DIR/index.sh"
-LIB_PARSER="$SCRIPT_DIR/lib/parse_frontmatter.sh"
-
 if [[ ! -f "$AUDIT_SCRIPT" ]]; then
     log_fail "audit.sh not found at $AUDIT_SCRIPT"
     exit 1
@@ -44,9 +42,6 @@ fi
 if [[ ! -f "$INDEX_SCRIPT" ]]; then
     log_fail "index.sh not found at $INDEX_SCRIPT"
     exit 1
-fi
-if [[ -f "$LIB_PARSER" ]]; then
-    source "$LIB_PARSER"
 fi
 
 BRAIN_DIR="${LOKA_BRAIN_ROOT:-}"
@@ -81,7 +76,30 @@ VAULT_ROOT="$(readlink -f "$BRAIN_DIR")"
 
 # Acquire vault-wide lock across write -> audit -> index -> verify
 LOCK_FILE="$VAULT_ROOT/.loka.lock"
-if [[ -z "${LOKA_LOCK_HELD:-}" ]]; then
+
+is_lock_fd_valid() {
+    # Check if FD 200 is open
+    if ! { true >&200; } 2>/dev/null; then
+        return 1
+    fi
+    # If /proc is available, verify FD 200 references LOCK_FILE
+    if [[ -d /proc/self/fd ]]; then
+        local fd_target real_lock
+        fd_target="$(readlink -f /proc/self/fd/200 2>/dev/null || true)"
+        real_lock="$(readlink -f "$LOCK_FILE" 2>/dev/null || true)"
+        if [[ -z "$fd_target" || -z "$real_lock" || "$fd_target" != "$real_lock" ]]; then
+            return 1
+        fi
+    fi
+    # Verify that an exclusive lock is actually held on LOCK_FILE
+    # If a separate probe FD can acquire an exclusive lock, then no lock is currently held.
+    if ( flock -n 9 ) 9<"$LOCK_FILE" 2>/dev/null; then
+        return 1
+    fi
+    return 0
+}
+
+if [[ -z "${LOKA_LOCK_HELD:-}" ]] || ! is_lock_fd_valid; then
     exec 200>"$LOCK_FILE"
     flock -x 200
     export LOKA_LOCK_HELD=1
@@ -316,7 +334,29 @@ cleanup_rollback() {
     fi
 }
 
-trap 'exit_code=$?; if [[ "$CLEANUP_REQUIRED" == true ]]; then cleanup_rollback; fi; exit $exit_code' EXIT INT TERM HUP
+on_exit() {
+    local exit_code=$?
+    if [[ "$CLEANUP_REQUIRED" == true ]]; then
+        cleanup_rollback
+    fi
+    exit $exit_code
+}
+
+on_signal() {
+    local signum="$1"
+    local exit_code=$((128 + signum))
+    if [[ "$CLEANUP_REQUIRED" == true ]]; then
+        CLEANUP_REQUIRED=false
+        cleanup_rollback
+    fi
+    trap - EXIT
+    exit "$exit_code"
+}
+
+trap on_exit EXIT
+trap 'on_signal 2' INT
+trap 'on_signal 15' TERM
+trap 'on_signal 1' HUP
 
 CLEANUP_REQUIRED=true
 
@@ -325,6 +365,15 @@ WRITE_TEMP="$(mktemp "${TARGET_REAL}.tmp.XXXXXX")"
 if [[ "$ACTION" == "MERGE" ]]; then
     BACKUP_FILE="$(mktemp "${TARGET_REAL}.bak.XXXXXX")"
     cp -p "$TARGET_REAL" "$BACKUP_FILE"
+    chmod --reference="$TARGET_REAL" "$WRITE_TEMP" 2>/dev/null || chmod 644 "$WRITE_TEMP"
+else
+    # NEW_MINT: apply permissions from sibling artifact if present, or sane default (644)
+    sibling="$(find "$TARGET_DIR_REAL" -maxdepth 1 -type f -name "*.md" ! -name "$(basename "$TARGET_REAL")" -print -quit 2>/dev/null || true)"
+    if [[ -n "$sibling" && -f "$sibling" ]]; then
+        chmod --reference="$sibling" "$WRITE_TEMP" 2>/dev/null || chmod 644 "$WRITE_TEMP"
+    else
+        chmod 644 "$WRITE_TEMP"
+    fi
 fi
 
 # Step 1: Write file via temp file + atomic mv -T
@@ -358,6 +407,9 @@ log_pass "Index catalog regenerated"
 # Step 4: Verify full vault integrity
 log_info "Running full vault audit..."
 FULL_AUDIT_LOG="$(mktemp "${TARGET_DIR_REAL}/.full_audit_log.XXXXXX")"
+VAULT_INTEGRITY_STATUS="PASS"
+FINAL_EXIT_CODE=0
+
 if ! bash "$AUDIT_SCRIPT" --all >"$FULL_AUDIT_LOG" 2>&1; then
     # Target file itself was verified in Step 2.
     # The failure in Step 4 is due to pre-existing dirty/failing artifacts elsewhere in the vault.
@@ -367,8 +419,16 @@ if ! bash "$AUDIT_SCRIPT" --all >"$FULL_AUDIT_LOG" 2>&1; then
     rm -f "$FULL_AUDIT_LOG" || true
     if [[ "$ALLOW_DIRTY_VAULT" == true ]]; then
         log_warn "Full vault audit failed on pre-existing artifacts, but --allow-dirty-vault was specified. Preserving minted artifact."
+        VAULT_INTEGRITY_STATUS="BYPASSED (DIRTY)"
+        FINAL_EXIT_CODE=23
     else
         log_fail "Full vault audit failed post-index! (Target artifact is valid, but other vault artifacts failed audit)"
+        if [[ -n "$BACKUP_FILE" && -f "$BACKUP_FILE" ]]; then
+            rm -f "$BACKUP_FILE"
+        fi
+        if [[ -n "$WRITE_TEMP" && -f "$WRITE_TEMP" ]]; then
+            rm -f "$WRITE_TEMP"
+        fi
         exit 22
     fi
 else
@@ -394,6 +454,6 @@ echo "DRAFT_HASH: $EXPECTED_HASH (VERIFIED)"
 echo "REALPATH_CONTAINMENT: PASS"
 echo "AUDIT: PASS"
 echo "INDEX: REGENERATED"
-echo "VAULT_INTEGRITY: PASS"
+echo "VAULT_INTEGRITY: $VAULT_INTEGRITY_STATUS"
 echo "=================================================================="
-exit 0
+exit "$FINAL_EXIT_CODE"

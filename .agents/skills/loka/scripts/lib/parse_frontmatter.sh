@@ -30,21 +30,7 @@ fi
 # Canonical Domain & Schema Enums (Single Source of Truth)
 # ------------------------------------------------------------------------------
 CANONICAL_DOMAINS=("profiles" "behaviors" "standards" "workflows" "tools" "meta")
-CANONICAL_TYPES=("profile" "behavior" "standard" "workflow" "tool" "meta")
 CANONICAL_STATUSES=("draft" "test" "active")
-
-type_to_domain() {
-    local t="$1"
-    case "$t" in
-        profile)  echo "profiles" ;;
-        behavior) echo "behaviors" ;;
-        standard) echo "standards" ;;
-        workflow) echo "workflows" ;;
-        tool)     echo "tools" ;;
-        meta)     echo "meta" ;;
-        *)        echo "" ;;
-    esac
-}
 
 domain_to_type() {
     local d="$1"
@@ -59,6 +45,25 @@ domain_to_type() {
     esac
 }
 
+type_to_domain() {
+    local t="$1"
+    case "$t" in
+        profile)  echo "profiles" ;;
+        behavior) echo "behaviors" ;;
+        standard) echo "standards" ;;
+        workflow) echo "workflows" ;;
+        tool)     echo "tools" ;;
+        meta)     echo "meta" ;;
+        *)        echo "" ;;
+    esac
+}
+
+# Derive CANONICAL_TYPES strictly from CANONICAL_DOMAINS SSOT via domain_to_type
+CANONICAL_TYPES=()
+for _domain in "${CANONICAL_DOMAINS[@]}"; do
+    CANONICAL_TYPES+=("$(domain_to_type "$_domain")")
+done
+
 parse_frontmatter() {
     local target_file="$1"
 
@@ -67,7 +72,11 @@ parse_frontmatter() {
         return 0
     fi
 
-    awk '
+    local types_pattern="^($(IFS='|'; echo "${CANONICAL_TYPES[*]}"))$"
+    local types_csv="$(printf ", %s" "${CANONICAL_TYPES[@]}")"
+    types_csv="${types_csv:2}"
+
+    awk -v types_pattern="$types_pattern" -v types_csv="$types_csv" '
     BEGIN {
         err = ""
         err_delimiter = ""
@@ -284,8 +293,8 @@ parse_frontmatter() {
             format_err = "Field sources declared but value is empty"
         } else if (has_id && id !~ /^[a-z0-9-]+$/) {
             format_err = "Invalid id (" id "): must be lowercase kebab-case"
-        } else if (has_type && type !~ /^(profile|behavior|standard|workflow|tool|meta)$/) {
-            format_err = "Invalid type (" type "): must be one of profile, behavior, standard, workflow, tool, meta"
+        } else if (has_type && type !~ types_pattern) {
+            format_err = "Invalid type (" type "): must be one of " types_csv
         } else if (has_status && status !~ /^(draft|test|active)$/) {
             format_err = "Invalid status (" status "): must be one of draft, test, active"
         } else if (has_deprecated && deprecated !~ /^(true|false)$/) {
