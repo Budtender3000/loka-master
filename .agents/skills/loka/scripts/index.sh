@@ -52,6 +52,22 @@ fi
 INDEX_FILE="$BRAIN_DIR/index.md"
 DOMAINS=("profiles" "behaviors" "standards" "workflows" "tools" "meta")
 
+START_MARKER="<!-- AUTO-INDEX:START -->"
+END_MARKER="<!-- AUTO-INDEX:END -->"
+
+sanitize_index_val() {
+    local val="$1"
+    val="${val//$'\n'/ }"
+    val="${val//$'\r'/ }"
+    val="${val//$'\t'/ }"
+    val="${val//<!--/}"
+    val="${val//-->/}"
+    val="${val//\[\[/\\[\\[}"
+    val="${val//\]\]/\\]\\]}"
+    val="${val//|/\\|}"
+    printf '%s' "$val"
+}
+
 # ------------------------------------------------------------------------------
 # 2. Parsing & Validation
 # ------------------------------------------------------------------------------
@@ -101,6 +117,14 @@ for domain in "${DOMAINS[@]}"; do
             continue
         fi
 
+        # Hard-fail if any frontmatter value contains an index marker string
+        for test_val in "$name" "$type" "$status" "$deprecated" "$description" "$created" "$owner" "$id"; do
+            if [[ "$test_val" == *"$START_MARKER"* || "$test_val" == *"$END_MARKER"* ]]; then
+                echo "ERROR: Artifact '$file' contains index marker string in frontmatter value: '$test_val'" >&2
+                exit 5
+            fi
+        done
+
         # Validate domain folder matches type
         expected_domain=""
         case "$type" in
@@ -132,21 +156,24 @@ for domain in "${DOMAINS[@]}"; do
             continue
         fi
 
-        # Wikilink: if basename matches name, [[name]]; otherwise [[basename|name]]
-        if [[ "$basename_no_ext" == "$name" ]]; then
-            wikilink="[[${name}]]"
+        # Sanitize interpolated values
+        sanitized_name="$(sanitize_index_val "$name")"
+        if [[ "$basename_no_ext" == "$sanitized_name" ]]; then
+            wikilink="[[${sanitized_name}]]"
         else
-            wikilink="[[${basename_no_ext}|${name}]]"
+            wikilink="[[${basename_no_ext}|${sanitized_name}]]"
         fi
 
         # Defaults for optional fields
-        display_status="${status:-draft}"
-        display_deprecated="${deprecated:-false}"
-        display_created="${created:-undated}"
+        display_status="$(sanitize_index_val "${status:-draft}")"
+        display_deprecated="$(sanitize_index_val "${deprecated:-false}")"
+        display_created="$(sanitize_index_val "${created:-undated}")"
+        sanitized_type="$(sanitize_index_val "$type")"
+        sanitized_desc="$(sanitize_index_val "$description")"
 
         # Format entry:
         # - [[id|name]] (`type` | `status` | deprecated: `bool` | `created`) — description
-        entry_line="- ${wikilink} (\`${type}\` | \`${display_status}\` | deprecated: \`${display_deprecated}\` | \`${display_created}\`) — ${description}"
+        entry_line="- ${wikilink} (\`${sanitized_type}\` | \`${display_status}\` | deprecated: \`${display_deprecated}\` | \`${display_created}\`) — ${sanitized_desc}"
 
         # Store for sorting: created (descending), id (ascending)
         domain_entries+=("${created:-0000-00-00}"$'\t'"${id}"$'\t'"${entry_line}")
@@ -205,21 +232,11 @@ Master directory of Knowledge Artifacts (KA) in loka-brain. Consult this index a
 <!-- AUTO-INDEX:END -->
 EOF
 else
-    # File exists: verify presence and order of both markers to prevent accidental overwrite
-    has_start=false
-    has_end=false
-    if grep -qF "$START_MARKER" "$INDEX_FILE"; then
-        has_start=true
-    fi
-    if grep -qF "$END_MARKER" "$INDEX_FILE"; then
-        has_end=true
-    fi
+    start_count="$(grep -cF "$START_MARKER" "$INDEX_FILE" || true)"
+    end_count="$(grep -cF "$END_MARKER" "$INDEX_FILE" || true)"
 
-    if [[ "$has_start" != true || "$has_end" != true ]]; then
-        echo "ERROR: '$INDEX_FILE' exists but is missing required index marker(s):" >&2
-        [[ "$has_start" != true ]] && echo "  - Missing start marker: $START_MARKER" >&2
-        [[ "$has_end" != true ]] && echo "  - Missing end marker: $END_MARKER" >&2
-        echo "Refusing to overwrite existing index file. Please insert markers manually into '$INDEX_FILE' or remove the file to reinitialize." >&2
+    if [[ "$start_count" -ne 1 || "$end_count" -ne 1 ]]; then
+        echo "ERROR: '$INDEX_FILE' must contain exactly one START marker and one END marker (found $start_count START, $end_count END)." >&2
         exit 1
     fi
 
@@ -237,23 +254,29 @@ TEMP_INDEX="$(mktemp "${TMPDIR:-/tmp}/loka_index.XXXXXX")"
 awk -v tables_file="$TEMP_TABLES" -v has_tables="$has_any_table" '
 BEGIN {
     in_block = 0
+    replaced = 0
 }
 /<!-- AUTO-INDEX:START -->/ {
-    print $0
-    in_block = 1
-    if (has_tables == "true") {
-        while ((getline line < tables_file) > 0) {
-            print line
+    if (!replaced) {
+        print $0
+        in_block = 1
+        if (has_tables == "true") {
+            while ((getline line < tables_file) > 0) {
+                print line
+            }
+            close(tables_file)
+            print ""
         }
-        close(tables_file)
-        print ""
+        next
     }
-    next
 }
 /<!-- AUTO-INDEX:END -->/ {
-    in_block = 0
-    print $0
-    next
+    if (in_block) {
+        in_block = 0
+        replaced = 1
+        print $0
+        next
+    }
 }
 !in_block {
     print $0

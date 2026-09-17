@@ -34,17 +34,27 @@ parse_frontmatter() {
     }
     function clean_val(v) {
         sub(/^[ \t]+/, "", v)
-        if (v ~ /^"[^"]*"/) {
-            sub(/^"/, "", v)
-            sub(/".*$/, "", v)
-        } else if (v ~ /^\047[^\047]*\047/) {
-            sub(/^\047/, "", v)
-            sub(/\047.*$/, "", v)
-        } else {
-            sub(/[ \t]*#.*$/, "", v)
-        }
-        sub(/^[ \t]+/, "", v)
         sub(/[ \t]+$/, "", v)
+        if (v ~ /^"/) {
+            if (v !~ /^"([^"\\]|\\.)*"$/) {
+                if (err == "") err = "Ambiguous or malformed double-quoted scalar: " v
+                return v
+            }
+            sub(/^"/, "", v)
+            sub(/"$/, "", v)
+            gsub(/\\"/, "\"", v)
+            gsub(/\\\\/, "\\", v)
+            return v
+        } else if (v ~ /^\047/) {
+            if (v !~ /^\047([^\047]|\047\047)*\047$/) {
+                if (err == "") err = "Ambiguous or malformed single-quoted scalar: " v
+                return v
+            }
+            sub(/^\047/, "", v)
+            sub(/\047$/, "", v)
+            gsub(/\047\047/, "\047", v)
+            return v
+        }
         return v
     }
     {

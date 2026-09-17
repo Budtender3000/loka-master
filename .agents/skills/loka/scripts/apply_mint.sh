@@ -167,7 +167,16 @@ if [[ "$TARGET_DIR_REAL" != "$VAULT_ROOT"/* ]]; then
     exit 11
 fi
 
-TARGET_REAL="$TARGET_DIR_REAL/$TARGET_FILENAME"
+TARGET_REAL="$(readlink -f "$TARGET_DIR_REAL/$TARGET_FILENAME" 2>/dev/null || true)"
+if [[ -z "$TARGET_REAL" || "$TARGET_REAL" != "$VAULT_ROOT"/* ]]; then
+    log_fail "Realpath containment violation: $TARGET_REAL is outside $VAULT_ROOT"
+    exit 11
+fi
+
+if [[ -L "$TARGET_DIR_REAL/$TARGET_FILENAME" || -L "$TARGET_REAL" ]]; then
+    log_fail "Pre-flight failed: Symlinked artifacts are prohibited: $TARGET_DIR_REAL/$TARGET_FILENAME"
+    exit 17
+fi
 
 # ------------------------------------------------------------------------------
 # 5. Pre-Flight Verification on Draft File
@@ -211,10 +220,14 @@ log_pass "Pre-flight verified: Containment, whitespace hygiene, and hash matched
 # 6. Transactional Write & Verification Sequence
 # ------------------------------------------------------------------------------
 BACKUP_FILE=""
+WRITE_TEMP=""
 CLEANUP_REQUIRED=false
 
 cleanup_rollback() {
     log_warn "Executing automated transactional rollback..."
+    if [[ -n "${WRITE_TEMP:-}" && -f "$WRITE_TEMP" ]]; then
+        rm -f "$WRITE_TEMP"
+    fi
     if [[ "$ACTION" == "NEW_MINT" ]]; then
         if [[ -f "$TARGET_REAL" ]]; then
             rm -f "$TARGET_REAL"
@@ -236,14 +249,24 @@ trap 'if [[ "$CLEANUP_REQUIRED" == true ]]; then cleanup_rollback; fi' EXIT
 
 CLEANUP_REQUIRED=true
 
+WRITE_TEMP="$(mktemp "${TARGET_REAL}.tmp.XXXXXX")"
+
 if [[ "$ACTION" == "MERGE" ]]; then
     BACKUP_FILE="$(mktemp "${TARGET_REAL}.bak.XXXXXX")"
     cp -p "$TARGET_REAL" "$BACKUP_FILE"
 fi
 
-# Step 1: Write file
-cp -f "$DRAFT_FILE" "$TARGET_REAL"
+# Step 1: Write file via temp file + atomic mv -T
+cp -f "$DRAFT_FILE" "$WRITE_TEMP"
+mv -T "$WRITE_TEMP" "$TARGET_REAL"
 log_info "Draft written to target: $TARGET_REAL"
+
+# Re-verify sha256sum of the final file against expected-hash
+FINAL_HASH="$(sha256sum "$TARGET_REAL" | awk '{print $1}')"
+if [[ "$FINAL_HASH" != "$EXPECTED_HASH" ]]; then
+    log_fail "Post-write verification failed: Final hash ($FINAL_HASH) does not match expected hash ($EXPECTED_HASH)!"
+    exit 18
+fi
 
 # Step 2: Audit target file
 log_info "Running single-file audit..."
@@ -271,6 +294,9 @@ log_pass "Full vault audit passed (zero errors, zero warnings)"
 
 # All steps succeeded: Disarm rollback trap
 CLEANUP_REQUIRED=false
+if [[ -n "$WRITE_TEMP" && -f "$WRITE_TEMP" ]]; then
+    rm -f "$WRITE_TEMP"
+fi
 if [[ -n "$BACKUP_FILE" && -f "$BACKUP_FILE" ]]; then
     rm -f "$BACKUP_FILE"
 fi
