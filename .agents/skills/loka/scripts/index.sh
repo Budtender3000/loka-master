@@ -49,6 +49,14 @@ if [[ -z "$BRAIN_DIR" || ! -d "$BRAIN_DIR" ]]; then
     exit 1
 fi
 
+# Vault-wide concurrency lock
+LOCK_FILE="$BRAIN_DIR/.loka.lock"
+if [[ -z "${LOKA_LOCK_HELD:-}" ]]; then
+    exec 200>"$LOCK_FILE"
+    flock -x 200
+    export LOKA_LOCK_HELD=1
+fi
+
 INDEX_FILE="$BRAIN_DIR/index.md"
 DOMAINS=("profiles" "behaviors" "standards" "workflows" "tools" "meta")
 
@@ -71,11 +79,48 @@ sanitize_index_val() {
 # ------------------------------------------------------------------------------
 # 2. Parsing & Validation
 # ------------------------------------------------------------------------------
-TEMP_TABLES="$(mktemp "${TMPDIR:-/tmp}/loka_tables.XXXXXX")"
-trap 'rm -f "$TEMP_TABLES"' EXIT
+TEMP_TABLES="$(mktemp "${BRAIN_DIR}/.tables.tmp.XXXXXX")"
+TEMP_INDEX=""
+cleanup() {
+    rm -f "$TEMP_TABLES"
+    if [[ -n "${TEMP_INDEX:-}" && -f "$TEMP_INDEX" ]]; then
+        rm -f "$TEMP_INDEX"
+    fi
+}
+trap cleanup EXIT
 
 has_any_table=false
 has_error=false
+
+# Check for non-canonical markdown files under vault root
+while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    rel="${f#$BRAIN_DIR/}"
+    if [[ "$f" == "$BRAIN_DIR/"* && "$rel" != *"/"* ]]; then
+        case "$rel" in
+            index.md|schema.md|README.md|AGENTS.md) ;;
+            *)
+                echo "ERROR: Non-canonical markdown file in vault root: '$rel'" >&2
+                has_error=true
+                ;;
+        esac
+    else
+        domain="${rel%%/*}"
+        rest="${rel#*/}"
+        case "$domain" in
+            profiles|behaviors|standards|workflows|tools|meta)
+                if [[ "$rest" == *"/"* ]]; then
+                    echo "ERROR: Forbidden nested subdirectory under domain '$domain': '$rel'" >&2
+                    has_error=true
+                fi
+                ;;
+            *)
+                echo "ERROR: Markdown file in non-canonical domain '$domain': '$rel'" >&2
+                has_error=true
+                ;;
+        esac
+    fi
+done < <(find "$BRAIN_DIR" -type f -name "*.md" | sort)
 
 for domain in "${DOMAINS[@]}"; do
     domain_dir="$BRAIN_DIR/$domain"
@@ -248,7 +293,8 @@ else
     fi
 fi
 
-TEMP_INDEX="$(mktemp "${TMPDIR:-/tmp}/loka_index.XXXXXX")"
+TEMP_INDEX="$(mktemp "${BRAIN_DIR}/.index.tmp.XXXXXX")"
+chmod --reference="$INDEX_FILE" "$TEMP_INDEX" 2>/dev/null || true
 
 # Replace content strictly between markers, preserving all exterior content exactly as-is
 awk -v tables_file="$TEMP_TABLES" -v has_tables="$has_any_table" '
@@ -283,4 +329,4 @@ BEGIN {
 }
 ' "$INDEX_FILE" > "$TEMP_INDEX"
 
-mv "$TEMP_INDEX" "$INDEX_FILE"
+mv -T "$TEMP_INDEX" "$INDEX_FILE"

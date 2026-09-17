@@ -98,6 +98,13 @@ fi
 INDEX_SCRIPT="$SCRIPT_DIR/index.sh"
 DOMAINS=("profiles" "behaviors" "standards" "workflows" "tools" "meta")
 
+LOCK_FILE="$BRAIN_DIR/.loka.lock"
+if [[ -z "${LOKA_LOCK_HELD:-}" ]]; then
+    exec 200>"$LOCK_FILE"
+    flock -x 200
+    export LOKA_LOCK_HELD=1
+fi
+
 # ------------------------------------------------------------------------------
 # 3. Audit Engine for a Single Knowledge Artifact
 # ------------------------------------------------------------------------------
@@ -155,13 +162,18 @@ audit_file() {
     done < <(parse_frontmatter "$file")
 
     # --- Dimension 1: Frontmatter Integrity ---
+    # Aggregate parser error check
+    if [[ -n "$err" ]]; then
+        fail "YAML frontmatter parser error" "$err"
+    fi
+
     # Delimiter enforcement
     if [[ -n "$err_delimiter" ]]; then
         fail "YAML frontmatter delimiter error" "$err_delimiter"
-    elif [[ $fm_start -eq 1 && $fm_end -eq ${expected_end} ]]; then
+    elif [[ $fm_start -eq 1 && $fm_end -gt 1 ]]; then
         pass "YAML frontmatter delimiters valid (line 1 to line ${fm_end})"
     else
-        fail "YAML frontmatter delimiter error (closing delimiter must be line ${expected_end})"
+        fail "YAML frontmatter delimiter error (closing delimiter missing or invalid)"
     fi
 
     # Key ordering enforcement
@@ -334,274 +346,278 @@ audit_file() {
     fi
 
     # --- Dimensions 3, 4, 5: Body Analysis ---
-    local body_start="${fm_end:-10}"
-
-    # --- Dimension 3: De-Identification & Neutrality ---
-    # Scan note body (lines after frontmatter) for hardcoded host paths
-    local host_paths="" awk_status=0
-    host_paths=$(awk -v end="$body_start" 'NR > end && /(^|[^a-zA-Z0-9_/-])(\/home\/|\/mnt\/|\/tmp\/|\/root\/)/ { print NR ":" $0 }' "$file") || awk_status=$?
-    if [[ $awk_status -ne 0 ]]; then
-        fail "De-identification check could not be executed" "awk exited with status $awk_status"
-    elif [[ -z "$host_paths" ]]; then
-        pass "De-identification verified (no hardcoded host paths like /home/, /mnt/, /tmp/)"
+    if [[ $fm_start -ne 1 || $fm_end -le 0 || -n "$err_delimiter" ]]; then
+        fail "Body analysis" "not evaluated — frontmatter unparseable"
     else
-        fail "Hardcoded host filesystem path detected in body" "$host_paths"
-    fi
+        local body_start="$fm_end"
 
-    # Scan for secret patterns in body
-    local secret_matches=""
-    awk_status=0
-    secret_matches=$(awk -v end="$body_start" 'NR > end && /(api[_-]?key|secret|token|password)[[:space:]]*[:=][[:space:]]*["\047][a-zA-Z0-9_\-\.]{8,}["\047]/ { print NR ":" $0 }' "$file") || awk_status=$?
-    if [[ $awk_status -ne 0 ]]; then
-        fail "Credential scan check could not be executed" "awk exited with status $awk_status"
-    elif [[ -z "$secret_matches" ]]; then
-        pass "Credential scan clear (zero hardcoded secrets or tokens)"
-    else
-        fail "Potential hardcoded secret or token detected" "$secret_matches"
-    fi
-
-    # --- Dimension 4: LOKA Isolation & Runtime Independence ---
-    local isolation_leakage=""
-    awk_status=0
-    isolation_leakage=$(awk -v end="$body_start" 'NR > end && /(BUDTENDER_KERNEL|BUDS_[A-Za-z0-9_]+|buds_[a-z0-9_]+)/ { print NR ":" $0 }' "$file") || awk_status=$?
-    if [[ $awk_status -ne 0 ]]; then
-        fail "Runtime isolation check could not be executed" "awk exited with status $awk_status"
-    elif [[ -z "$isolation_leakage" ]]; then
-        pass "LOKA runtime isolation verified (zero host or environment leaks)"
-    else
-        fail "Runtime isolation violation detected" "$isolation_leakage"
-    fi
-
-    # --- Dimension 5: Obsidian & Markdown Standards ---
-    # First heading after frontmatter must be H1 matching name verbatim
-    local h1_title=""
-    awk_status=0
-    h1_title=$(awk -v end="$body_start" 'NR > end && /^# / { sub(/^# [ \t]*/, ""); gsub(/\r/, ""); print; exit }' "$file") || awk_status=$?
-    if [[ $awk_status -ne 0 ]]; then
-        fail "H1 title check could not be executed" "awk exited with status $awk_status"
-    elif [[ -n "$h1_title" ]]; then
-        if [[ "$h1_title" == "$name" ]]; then
-            pass "H1 Title ('# $h1_title') matches frontmatter name verbatim"
+        # --- Dimension 3: De-Identification & Neutrality ---
+        # Scan note body (lines after frontmatter) for hardcoded host paths
+        local host_paths="" awk_status=0
+        host_paths=$(awk -v end="$body_start" 'NR > end && /(^|[^a-zA-Z0-9_/-])(\/home\/|\/mnt\/|\/tmp\/|\/root\/)/ { print NR ":" $0 }' "$file") || awk_status=$?
+        if [[ $awk_status -ne 0 ]]; then
+            fail "De-identification check could not be executed" "awk exited with status $awk_status"
+        elif [[ -z "$host_paths" ]]; then
+            pass "De-identification verified (no hardcoded host paths like /home/, /mnt/, /tmp/)"
         else
-            fail "H1 Title mismatch: '# $h1_title' does not match frontmatter name ('$name') verbatim"
+            fail "Hardcoded host filesystem path detected in body" "$host_paths"
         fi
-    else
-        fail "Missing H1 document title ('# <Title>') after frontmatter"
-    fi
 
-    # Check for forbidden Obsidian tags (#tag) outside code fences
-    local obsidian_tags=""
-    awk_status=0
-    obsidian_tags=$(awk -v end="$body_start" '
-    BEGIN { in_code = 0 }
-    NR > end {
-        if ($0 ~ /^```/) { in_code = !in_code; next }
-        if (!in_code && $0 !~ /^[#]+ / && $0 ~ /(^|[ \t])#[a-zA-Z][a-zA-Z0-9_-]*/) {
-            print NR ":" $0
-        }
-    }' "$file") || awk_status=$?
-
-    if [[ $awk_status -ne 0 ]]; then
-        fail "Obsidian tag check could not be executed" "awk exited with status $awk_status"
-    elif [[ -z "$obsidian_tags" ]]; then
-        pass "Obsidian tag check passed (zero forbidden #tags found)"
-    else
-        fail "Obsidian #tag syntax detected (prohibited by vault contract)" "$obsidian_tags"
-    fi
-
-    # Check code fences have language tags
-    local untagged_fences=""
-    awk_status=0
-    untagged_fences=$(awk -v end="$body_start" '
-    BEGIN { in_code = 0 }
-    NR > end {
-        if ($0 ~ /^[ \t]*```+[ \t\r]*$/) {
-            if (!in_code) {
-                print NR ": opening code fence missing language identifier"
-            }
-            in_code = !in_code
-        } else if ($0 ~ /^[ \t]*```+[a-zA-Z0-9_-]+/) {
-            in_code = 1
-        }
-    }' "$file") || awk_status=$?
-
-    if [[ $awk_status -ne 0 ]]; then
-        fail "Code fence language check could not be executed" "awk exited with status $awk_status"
-    elif [[ -z "$untagged_fences" ]]; then
-        pass "Fenced code blocks specify language identifiers"
-    else
-        fail "Untagged code fence detected (language identifier required)" "$untagged_fences"
-    fi
-
-    # H2 section structure check (Context -> Mechanism -> [Implementation ->] Rules)
-    local h2_headings=()
-    local h2_raw=""
-    awk_status=0
-    h2_raw=$(awk -v end="$body_start" '
-        BEGIN { in_code = 0 }
-        NR > end {
-            if ($0 ~ /^```/) { in_code = !in_code; next }
-            if (!in_code && $0 ~ /^## /) {
-                h = $0
-                sub(/^##[ \t]+/, "", h)
-                sub(/[ \t\r]+$/, "", h)
-                print h
-            }
-        }' "$file") || awk_status=$?
-
-    if [[ $awk_status -ne 0 ]]; then
-        fail "H2 section structure check could not be executed" "awk exited with status $awk_status"
-    else
-        while IFS= read -r heading_line; do
-            [[ -n "$heading_line" ]] && h2_headings+=("$heading_line")
-        done <<< "$h2_raw"
-
-        local h2_joined
-        h2_joined=$(IFS=','; echo "${h2_headings[*]}")
-
-        if [[ "$h2_joined" == "Context,Mechanism,Rules" || "$h2_joined" == "Context,Mechanism,Implementation,Rules" ]]; then
-            pass "H2 section structure verified (${h2_joined//,/ -> })"
+        # Scan for secret patterns in body
+        local secret_matches=""
+        awk_status=0
+        secret_matches=$(awk -v end="$body_start" 'NR > end && /(api[_-]?key|secret|token|password)[[:space:]]*[:=][[:space:]]*["\047][a-zA-Z0-9_\-\.]{8,}["\047]/ { print NR ":" $0 }' "$file") || awk_status=$?
+        if [[ $awk_status -ne 0 ]]; then
+            fail "Credential scan check could not be executed" "awk exited with status $awk_status"
+        elif [[ -z "$secret_matches" ]]; then
+            pass "Credential scan clear (zero hardcoded secrets or tokens)"
         else
-            local h2_detail=""
-            if [[ ${#h2_headings[@]} -eq 0 ]]; then
-                h2_detail="Zero H2 headings found in document body"
+            fail "Potential hardcoded secret or token detected" "$secret_matches"
+        fi
+
+        # --- Dimension 4: LOKA Isolation & Runtime Independence ---
+        local isolation_leakage=""
+        awk_status=0
+        isolation_leakage=$(awk -v end="$body_start" 'NR > end && /(BUDTENDER_KERNEL|BUDS_[A-Za-z0-9_]+|buds_[a-z0-9_]+)/ { print NR ":" $0 }' "$file") || awk_status=$?
+        if [[ $awk_status -ne 0 ]]; then
+            fail "Runtime isolation check could not be executed" "awk exited with status $awk_status"
+        elif [[ -z "$isolation_leakage" ]]; then
+            pass "LOKA runtime isolation verified (zero host or environment leaks)"
+        else
+            fail "Runtime isolation violation detected" "$isolation_leakage"
+        fi
+
+        # --- Dimension 5: Obsidian & Markdown Standards ---
+        # First heading after frontmatter must be H1 matching name verbatim
+        local h1_title=""
+        awk_status=0
+        h1_title=$(awk -v end="$body_start" 'NR > end && /^# / { sub(/^# [ \t]*/, ""); gsub(/\r/, ""); print; exit }' "$file") || awk_status=$?
+        if [[ $awk_status -ne 0 ]]; then
+            fail "H1 title check could not be executed" "awk exited with status $awk_status"
+        elif [[ -n "$h1_title" ]]; then
+            if [[ "$h1_title" == "$name" ]]; then
+                pass "H1 Title ('# $h1_title') matches frontmatter name verbatim"
             else
-                h2_detail="Found: [${h2_joined//,/, }] (expected: 'Context -> Mechanism -> Rules' or 'Context -> Mechanism -> Implementation -> Rules')"
+                fail "H1 Title mismatch: '# $h1_title' does not match frontmatter name ('$name') verbatim"
             fi
-            fail "H2 section structure violation (mandatory sections missing, duplicated, or out of order)" "$h2_detail"
+        else
+            fail "Missing H1 document title ('# <Title>') after frontmatter"
         fi
-    fi
 
-    # Wikilink validity check
-    local dead_links=()
-    local wikilinks_raw=""
-    awk_status=0
-    wikilinks_raw=$(awk -v end="$body_start" '
+        # Check for forbidden Obsidian tags (#tag) outside code fences
+        local obsidian_tags=""
+        awk_status=0
+        obsidian_tags=$(awk -v end="$body_start" '
         BEGIN { in_code = 0 }
         NR > end {
-            if ($0 ~ /^```/) { in_code = !in_code; next }
-            if (in_code) next
-            line = $0
-            gsub(/\r/, "", line)
-            gsub(/`[^`]*`/, "", line)
-            while (match(line, /\[\[([^\]]+)\]\]/)) {
-                link = substr(line, RSTART + 2, RLENGTH - 4)
-                line = substr(line, RSTART + RLENGTH)
-                sub(/\|.*$/, "", link)
-                sub(/#.*$/, "", link)
-                sub(/\.md$/, "", link)
-                sub(/^[ \t]+/, "", link)
-                sub(/[ \t]+$/, "", link)
-                if (length(link) > 0) {
-                    print NR ":" link
-                } else {
-                    print NR ":(empty)"
-                }
+            if ($0 ~ /^[ \t]*```+/) { in_code = !in_code; next }
+            if (!in_code && $0 !~ /^[#]+ / && $0 ~ /(^|[ \t])#[a-zA-Z][a-zA-Z0-9_-]*/) {
+                print NR ":" $0
             }
         }' "$file") || awk_status=$?
 
-    if [[ $awk_status -ne 0 ]]; then
-        fail "Wikilink integrity check could not be executed" "awk exited with status $awk_status"
-    else
-        while IFS=':' read -r line_num link_target; do
-            [[ -z "$link_target" ]] && continue
-            local resolved=false
-            for d in "${DOMAINS[@]}"; do
-                if [[ -f "$BRAIN_DIR/$d/${link_target}.md" ]]; then
-                    resolved=true
-                    break
-                fi
-            done
-            if [[ "$resolved" != true ]]; then
-                dead_links+=("line ${line_num}: [[${link_target}]]")
-            fi
-        done <<< "$wikilinks_raw"
-
-        if [[ ${#dead_links[@]} -eq 0 ]]; then
-            pass "Wikilink integrity verified (all internal [[...]] links resolve to valid artifacts)"
+        if [[ $awk_status -ne 0 ]]; then
+            fail "Obsidian tag check could not be executed" "awk exited with status $awk_status"
+        elif [[ -z "$obsidian_tags" ]]; then
+            pass "Obsidian tag check passed (zero forbidden #tags found)"
         else
-            fail "Dead wikilink(s) detected in body (target does not exist in domain folders)" "${dead_links[*]}"
+            fail "Obsidian #tag syntax detected (prohibited by vault contract)" "$obsidian_tags"
         fi
-    fi
 
-    # Body-wide heading integrity check (single H1 document title, zero empty headings)
-    local extra_h1_lines=()
-    local empty_heading_lines=()
-    local heading_raw=""
-    awk_status=0
-    heading_raw=$(awk -v end="$body_start" '
-        BEGIN {
-            in_code = 0
-            first_h1_seen = 0
-        }
+        # Check code fences have language tags
+        local untagged_fences=""
+        awk_status=0
+        untagged_fences=$(awk -v end="$body_start" '
+        BEGIN { in_code = 0 }
         NR > end {
-            if ($0 ~ /^```/) { in_code = !in_code; next }
-            if (in_code) next
-
-            if ($0 ~ /^#{1,6}[ \t\r]*$/) {
-                print "EMPTY:" NR ":" $0
-                next
-            }
-
-            if ($0 ~ /^#[ \t]+/) {
-                if (!first_h1_seen) {
-                    first_h1_seen = 1
-                } else {
-                    print "EXTRA_H1:" NR ":" $0
+            if ($0 ~ /^[ \t]*```+[ \t\r]*$/) {
+                if (!in_code) {
+                    print NR ": opening code fence missing language identifier"
                 }
+                in_code = !in_code
+            } else if ($0 ~ /^[ \t]*```+[a-zA-Z0-9_-]+/) {
+                in_code = 1
             }
         }' "$file") || awk_status=$?
 
-    if [[ $awk_status -ne 0 ]]; then
-        fail "Body heading integrity check could not be executed" "awk exited with status $awk_status"
-    else
-        while IFS=':' read -r violation_type line_num violation_content; do
-            case "$violation_type" in
-                EXTRA_H1)
-                    extra_h1_lines+=("line ${line_num}")
-                    ;;
-                EMPTY)
-                    empty_heading_lines+=("line ${line_num}")
-                    ;;
-            esac
-        done <<< "$heading_raw"
-
-        local heading_errors=()
-        if [[ ${#extra_h1_lines[@]} -gt 0 ]]; then
-            heading_errors+=("Multiple H1 headings detected (${extra_h1_lines[*]})")
-        fi
-        if [[ ${#empty_heading_lines[@]} -gt 0 ]]; then
-            heading_errors+=("Empty heading without text (${empty_heading_lines[*]})")
-        fi
-
-        if [[ ${#heading_errors[@]} -eq 0 ]]; then
-            pass "Body heading integrity verified (single H1 title, zero empty headings)"
+        if [[ $awk_status -ne 0 ]]; then
+            fail "Code fence language check could not be executed" "awk exited with status $awk_status"
+        elif [[ -z "$untagged_fences" ]]; then
+            pass "Fenced code blocks specify language identifiers"
         else
-            local heading_detail
-            heading_detail=$(IFS='; '; echo "${heading_errors[*]}")
-            fail "Heading integrity violation detected" "$heading_detail"
+            fail "Untagged code fence detected (language identifier required)" "$untagged_fences"
         fi
-    fi
 
-    # Trailing whitespace hygiene check (prevents git pre-flight failures)
-    local trailing_ws_lines=()
-    local trailing_raw=""
-    awk_status=0
-    trailing_raw=$(awk '/[ \t]+$/ { print "line " NR ": " $0 }' "$file") || awk_status=$?
+        # H2 section structure check (Context -> Mechanism -> [Implementation ->] Rules)
+        local h2_headings=()
+        local h2_raw=""
+        awk_status=0
+        h2_raw=$(awk -v end="$body_start" '
+            BEGIN { in_code = 0 }
+            NR > end {
+                if ($0 ~ /^[ \t]*```+/) { in_code = !in_code; next }
+                if (!in_code && $0 ~ /^## /) {
+                    h = $0
+                    sub(/^##[ \t]+/, "", h)
+                    sub(/[ \t\r]+$/, "", h)
+                    print h
+                }
+            }' "$file") || awk_status=$?
 
-    if [[ $awk_status -ne 0 ]]; then
-        fail "Whitespace hygiene check could not be executed" "awk exited with status $awk_status"
-    else
-        while IFS= read -r ws_match; do
-            [[ -n "$ws_match" ]] && trailing_ws_lines+=("$ws_match")
-        done <<< "$trailing_raw"
-
-        if [[ ${#trailing_ws_lines[@]} -eq 0 ]]; then
-            pass "Whitespace hygiene verified (zero trailing whitespace across entire file)"
+        if [[ $awk_status -ne 0 ]]; then
+            fail "H2 section structure check could not be executed" "awk exited with status $awk_status"
         else
-            local ws_detail
-            ws_detail=$(IFS='; '; echo "${trailing_ws_lines[*]}")
-            fail "Trailing whitespace detected (violates git pre-flight check)" "$ws_detail"
+            while IFS= read -r heading_line; do
+                [[ -n "$heading_line" ]] && h2_headings+=("$heading_line")
+            done <<< "$h2_raw"
+
+            local h2_joined
+            h2_joined=$(IFS=','; echo "${h2_headings[*]}")
+
+            if [[ "$h2_joined" == "Context,Mechanism,Rules" || "$h2_joined" == "Context,Mechanism,Implementation,Rules" ]]; then
+                pass "H2 section structure verified (${h2_joined//,/ -> })"
+            else
+                local h2_detail=""
+                if [[ ${#h2_headings[@]} -eq 0 ]]; then
+                    h2_detail="Zero H2 headings found in document body"
+                else
+                    h2_detail="Found: [${h2_joined//,/, }] (expected: 'Context -> Mechanism -> Rules' or 'Context -> Mechanism -> Implementation -> Rules')"
+                fi
+                fail "H2 section structure violation (mandatory sections missing, duplicated, or out of order)" "$h2_detail"
+            fi
+        fi
+
+        # Wikilink validity check
+        local dead_links=()
+        local wikilinks_raw=""
+        awk_status=0
+        wikilinks_raw=$(awk -v end="$body_start" '
+            BEGIN { in_code = 0 }
+            NR > end {
+                if ($0 ~ /^[ \t]*```+/) { in_code = !in_code; next }
+                if (in_code) next
+                line = $0
+                gsub(/\r/, "", line)
+                gsub(/`[^`]*`/, "", line)
+                while (match(line, /\[\[([^\]]+)\]\]/)) {
+                    link = substr(line, RSTART + 2, RLENGTH - 4)
+                    line = substr(line, RSTART + RLENGTH)
+                    sub(/\|.*$/, "", link)
+                    sub(/#.*$/, "", link)
+                    sub(/\.md$/, "", link)
+                    sub(/^[ \t]+/, "", link)
+                    sub(/[ \t]+$/, "", link)
+                    if (length(link) > 0) {
+                        print NR ":" link
+                    } else {
+                        print NR ":(empty)"
+                    }
+                }
+            }' "$file") || awk_status=$?
+
+        if [[ $awk_status -ne 0 ]]; then
+            fail "Wikilink integrity check could not be executed" "awk exited with status $awk_status"
+        else
+            while IFS=':' read -r line_num link_target; do
+                [[ -z "$link_target" ]] && continue
+                local resolved=false
+                for d in "${DOMAINS[@]}"; do
+                    if [[ -f "$BRAIN_DIR/$d/${link_target}.md" ]]; then
+                        resolved=true
+                        break
+                    fi
+                done
+                if [[ "$resolved" != true ]]; then
+                    dead_links+=("line ${line_num}: [[${link_target}]]")
+                fi
+            done <<< "$wikilinks_raw"
+
+            if [[ ${#dead_links[@]} -eq 0 ]]; then
+                pass "Wikilink integrity verified (all internal [[...]] links resolve to valid artifacts)"
+            else
+                fail "Dead wikilink(s) detected in body (target does not exist in domain folders)" "${dead_links[*]}"
+            fi
+        fi
+
+        # Body-wide heading integrity check (single H1 document title, zero empty headings)
+        local extra_h1_lines=()
+        local empty_heading_lines=()
+        local heading_raw=""
+        awk_status=0
+        heading_raw=$(awk -v end="$body_start" '
+            BEGIN {
+                in_code = 0
+                first_h1_seen = 0
+            }
+            NR > end {
+                if ($0 ~ /^[ \t]*```+/) { in_code = !in_code; next }
+                if (in_code) next
+
+                if ($0 ~ /^#{1,6}[ \t\r]*$/) {
+                    print "EMPTY:" NR ":" $0
+                    next
+                }
+
+                if ($0 ~ /^#[ \t]+/) {
+                    if (!first_h1_seen) {
+                        first_h1_seen = 1
+                    } else {
+                        print "EXTRA_H1:" NR ":" $0
+                    }
+                }
+            }' "$file") || awk_status=$?
+
+        if [[ $awk_status -ne 0 ]]; then
+            fail "Body heading integrity check could not be executed" "awk exited with status $awk_status"
+        else
+            while IFS=':' read -r violation_type line_num violation_content; do
+                case "$violation_type" in
+                    EXTRA_H1)
+                        extra_h1_lines+=("line ${line_num}")
+                        ;;
+                    EMPTY)
+                        empty_heading_lines+=("line ${line_num}")
+                        ;;
+                esac
+            done <<< "$heading_raw"
+
+            local heading_errors=()
+            if [[ ${#extra_h1_lines[@]} -gt 0 ]]; then
+                heading_errors+=("Multiple H1 headings detected (${extra_h1_lines[*]})")
+            fi
+            if [[ ${#empty_heading_lines[@]} -gt 0 ]]; then
+                heading_errors+=("Empty heading without text (${empty_heading_lines[*]})")
+            fi
+
+            if [[ ${#heading_errors[@]} -eq 0 ]]; then
+                pass "Body heading integrity verified (single H1 title, zero empty headings)"
+            else
+                local heading_detail
+                heading_detail=$(IFS='; '; echo "${heading_errors[*]}")
+                fail "Heading integrity violation detected" "$heading_detail"
+            fi
+        fi
+
+        # Trailing whitespace hygiene check (prevents git pre-flight failures)
+        local trailing_ws_lines=()
+        local trailing_raw=""
+        awk_status=0
+        trailing_raw=$(awk '/[[:space:]]+$/ { print "line " NR ": " $0 }' "$file") || awk_status=$?
+
+        if [[ $awk_status -ne 0 ]]; then
+            fail "Whitespace hygiene check could not be executed" "awk exited with status $awk_status"
+        else
+            while IFS= read -r ws_match; do
+                [[ -n "$ws_match" ]] && trailing_ws_lines+=("$ws_match")
+            done <<< "$trailing_raw"
+
+            if [[ ${#trailing_ws_lines[@]} -eq 0 ]]; then
+                pass "Whitespace hygiene verified (zero trailing whitespace across entire file)"
+            else
+                local ws_detail
+                ws_detail=$(IFS='; '; echo "${trailing_ws_lines[*]}")
+                fail "Trailing whitespace detected (violates git pre-flight check)" "$ws_detail"
+            fi
         fi
     fi
 
@@ -727,13 +743,18 @@ promote_file() {
     fi
 
     # Backup file before mutating
+    local target_dir target_file_base
+    target_dir="$(dirname "$target_file")"
+    target_file_base="$(basename "$target_file")"
+
     local backup_file
-    backup_file="$(mktemp "${TMPDIR:-/tmp}/ka_promote_backup.XXXXXX")"
-    cp "$target_file" "$backup_file"
+    backup_file="$(mktemp "$target_dir/${target_file_base}.bak.XXXXXX")"
+    cp -p "$target_file" "$backup_file"
 
     # Mutate status in frontmatter (leaving deprecated untouched)
     local temp_file
-    temp_file="$(mktemp "${TMPDIR:-/tmp}/ka_promote.XXXXXX")"
+    temp_file="$(mktemp "$target_dir/${target_file_base}.tmp.XXXXXX")"
+    chmod --reference="$target_file" "$temp_file" 2>/dev/null || true
     awk -v next_st="$next_status" '
     BEGIN { in_fm = 0; fm_count = 0 }
     /^---[ \t\r]*$/ {
@@ -748,21 +769,17 @@ promote_file() {
     { print }
     ' "$target_file" > "$temp_file"
 
-    mv "$temp_file" "$target_file"
+    mv -T "$temp_file" "$target_file"
     echo -e "\n${BOLD}${GREEN}[SUCCESS] Status updated:${NC} ${current_status} → ${next_status} (${target_file})"
 
-    # Refresh master index if index.sh exists
-    if [[ -x "$INDEX_SCRIPT" ]]; then
-        echo -e "Refreshing master catalog at ${CYAN}${BRAIN_DIR}/index.md${NC}..."
-        if ! "$INDEX_SCRIPT" "$BRAIN_DIR"; then
-            echo -e "${BOLD}${RED}[ERROR] Master index generation failed via ${INDEX_SCRIPT}. Rolling back promotion.${NC}" >&2
-            mv "$backup_file" "$target_file"
-            return 1
-        fi
-        echo -e "${GREEN}Index synchronized successfully.${NC}"
-    else
-        echo -e "${YELLOW}Warning: Index script not found or not executable at ${INDEX_SCRIPT}.${NC}" >&2
+    # Refresh master index
+    echo -e "Refreshing master catalog at ${CYAN}${BRAIN_DIR}/index.md${NC}..."
+    if ! bash "$INDEX_SCRIPT" "$BRAIN_DIR"; then
+        echo -e "${BOLD}${RED}[ERROR] Master index generation failed via ${INDEX_SCRIPT}. Rolling back promotion.${NC}" >&2
+        mv -f "$backup_file" "$target_file"
+        return 1
     fi
+    echo -e "${GREEN}Index synchronized successfully.${NC}"
 
     rm -f "$backup_file"
     return 0
@@ -792,12 +809,17 @@ set_deprecation_flag() {
         return 0
     fi
 
+    local target_dir target_file_base
+    target_dir="$(dirname "$target_file")"
+    target_file_base="$(basename "$target_file")"
+
     local backup_file
-    backup_file="$(mktemp "${TMPDIR:-/tmp}/ka_dep_backup.XXXXXX")"
-    cp "$target_file" "$backup_file"
+    backup_file="$(mktemp "$target_dir/${target_file_base}.bak.XXXXXX")"
+    cp -p "$target_file" "$backup_file"
 
     local temp_file
-    temp_file="$(mktemp "${TMPDIR:-/tmp}/ka_dep.XXXXXX")"
+    temp_file="$(mktemp "$target_dir/${target_file_base}.tmp.XXXXXX")"
+    chmod --reference="$target_file" "$temp_file" 2>/dev/null || true
     awk -v new_val="$new_dep_val" '
     BEGIN { in_fm = 0; fm_count = 0; found = 0 }
     /^---[ \t\r]*$/ {
@@ -847,18 +869,16 @@ set_deprecation_flag() {
         return 1
     fi
 
-    mv "$temp_file" "$target_file"
+    mv -T "$temp_file" "$target_file"
     echo -e "\n${BOLD}${GREEN}[SUCCESS] Deprecation flag updated:${NC} deprecated: ${new_dep_val} (${target_file})"
 
-    if [[ -x "$INDEX_SCRIPT" ]]; then
-        echo -e "Refreshing master catalog at ${CYAN}${BRAIN_DIR}/index.md${NC}..."
-        if ! "$INDEX_SCRIPT" "$BRAIN_DIR"; then
-            echo -e "${BOLD}${RED}[ERROR] Master index generation failed via ${INDEX_SCRIPT}. Rolling back change.${NC}" >&2
-            mv "$backup_file" "$target_file"
-            return 1
-        fi
-        echo -e "${GREEN}Index synchronized successfully.${NC}"
+    echo -e "Refreshing master catalog at ${CYAN}${BRAIN_DIR}/index.md${NC}..."
+    if ! bash "$INDEX_SCRIPT" "$BRAIN_DIR"; then
+        echo -e "${BOLD}${RED}[ERROR] Master index generation failed via ${INDEX_SCRIPT}. Rolling back change.${NC}" >&2
+        mv -f "$backup_file" "$target_file"
+        return 1
     fi
+    echo -e "${GREEN}Index synchronized successfully.${NC}"
 
     rm -f "$backup_file"
     return 0
@@ -905,9 +925,9 @@ else
             --promote)
                 PROMOTE_MODE=true
                 shift
-                if [[ $# -eq 0 ]]; then
+                if [[ $# -eq 0 || "$1" == -* ]]; then
                     echo -e "${RED}Error: --promote requires a target file path.${NC}" >&2
-                    exit 1
+                    usage
                 fi
                 TARGET_FILES+=("$1")
                 shift
@@ -919,9 +939,9 @@ else
             --deprecate)
                 DEPRECATE_MODE=true
                 shift
-                if [[ $# -eq 0 ]]; then
+                if [[ $# -eq 0 || "$1" == -* ]]; then
                     echo -e "${RED}Error: --deprecate requires a target file path.${NC}" >&2
-                    exit 1
+                    usage
                 fi
                 TARGET_FILES+=("$1")
                 shift
@@ -929,14 +949,18 @@ else
             --undeprecate)
                 UNDEPRECATE_MODE=true
                 shift
-                if [[ $# -eq 0 ]]; then
+                if [[ $# -eq 0 || "$1" == -* ]]; then
                     echo -e "${RED}Error: --undeprecate requires a target file path.${NC}" >&2
-                    exit 1
+                    usage
                 fi
                 TARGET_FILES+=("$1")
                 shift
                 ;;
             -h|--help)
+                usage
+                ;;
+            -*)
+                echo -e "${RED}Error: Unrecognized option '$1'.${NC}" >&2
                 usage
                 ;;
             *)
@@ -946,6 +970,59 @@ else
         esac
     done
 fi
+
+mode_count=0
+[[ "$AUDIT_ALL" == true ]] && mode_count=$((mode_count + 1))
+[[ "$PROMOTE_MODE" == true ]] && mode_count=$((mode_count + 1))
+[[ "$PROMOTE_ALL" == true ]] && mode_count=$((mode_count + 1))
+[[ "$DEPRECATE_MODE" == true ]] && mode_count=$((mode_count + 1))
+[[ "$UNDEPRECATE_MODE" == true ]] && mode_count=$((mode_count + 1))
+
+if [[ $mode_count -gt 1 ]]; then
+    echo -e "${RED}Error: Mutually exclusive options specified. Cannot combine --all, --promote, --promote-all, --deprecate, --undeprecate.${NC}" >&2
+    usage
+fi
+
+if [[ "$AUDIT_ALL" == true && ${#TARGET_FILES[@]} -gt 0 ]]; then
+    echo -e "${RED}Error: Cannot combine --all with explicitly passed file paths.${NC}" >&2
+    usage
+fi
+
+if [[ "$PROMOTE_ALL" == true && ${#TARGET_FILES[@]} -gt 0 ]]; then
+    echo -e "${RED}Error: Cannot combine --promote-all with explicitly passed file paths.${NC}" >&2
+    usage
+fi
+
+# Check for non-canonical markdown files under vault root
+stray_md_files=()
+while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    rel="${f#$BRAIN_DIR/}"
+    if [[ "$rel" != *"/"* ]]; then
+        case "$rel" in
+            index.md|schema.md|README.md|AGENTS.md)
+                ;;
+            *)
+                stray_md_files+=("$rel (stray markdown file at vault root)")
+                ;;
+        esac
+    else
+        domain="${rel%%/*}"
+        subpath="${rel#*/}"
+        is_canonical=false
+        for d in "${DOMAINS[@]}"; do
+            if [[ "$domain" == "$d" ]]; then
+                is_canonical=true
+                break
+            fi
+        done
+        if [[ "$is_canonical" != true ]]; then
+            stray_md_files+=("$rel (non-canonical domain directory '$domain')")
+        elif [[ "$subpath" == *"/"* ]]; then
+            stray_md_files+=("$rel (forbidden nested subdirectory under domain '$domain')")
+        fi
+    fi
+done < <(find "$BRAIN_DIR" -type f -name "*.md" | sort)
 
 if [[ "$AUDIT_ALL" == true || "$PROMOTE_ALL" == true ]]; then
     TARGET_FILES=()
@@ -972,6 +1049,10 @@ if [[ ${#TARGET_FILES[@]} -eq 0 ]]; then
     else
         echo -e "All 6 domain directories exist, but contain zero knowledge artifacts (.md)." >&2
     fi
+    if [[ ${#stray_md_files[@]} -gt 0 ]]; then
+        echo -e "\n${RED}Non-canonical markdown files detected:${NC}" >&2
+        printf "  - %s\n" "${stray_md_files[@]}" >&2
+    fi
     exit 3
 fi
 
@@ -981,6 +1062,14 @@ echo -e "Vault Root: ${BRAIN_DIR}"
 echo -e "Artifacts:  ${#TARGET_FILES[@]}"
 
 EXIT_CODE=0
+
+if [[ ${#stray_md_files[@]} -gt 0 ]]; then
+    echo -e "\n  ${BOLD}Vault Structure Audit:${NC}"
+    for stray in "${stray_md_files[@]}"; do
+        fail "Non-canonical markdown file in vault" "$stray"
+    done
+    EXIT_CODE=1
+fi
 
 if [[ "$PROMOTE_MODE" == true ]]; then
     for target in "${TARGET_FILES[@]}"; do

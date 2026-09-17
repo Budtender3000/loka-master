@@ -18,6 +18,11 @@ parse_frontmatter() {
         err = ""
         err_delimiter = ""
         err_order = ""
+        err_duplicate = ""
+        err_unknown = ""
+        err_comments = ""
+        err_blank = ""
+        err_malformed = ""
         in_fm = 0
         fm_start = 0
         fm_end = 0
@@ -89,47 +94,47 @@ parse_frontmatter() {
             key_arr[key_count] = key
 
             if (key == "id") {
-                if (has_id) err = "Duplicate frontmatter key: id"
+                if (has_id && err_duplicate == "") err_duplicate = "Duplicate frontmatter key: id"
                 id = val
                 has_id = 1
             } else if (key == "name") {
-                if (has_name) err = "Duplicate frontmatter key: name"
+                if (has_name && err_duplicate == "") err_duplicate = "Duplicate frontmatter key: name"
                 name = val
                 has_name = 1
             } else if (key == "type") {
-                if (has_type) err = "Duplicate frontmatter key: type"
+                if (has_type && err_duplicate == "") err_duplicate = "Duplicate frontmatter key: type"
                 type = val
                 has_type = 1
             } else if (key == "status") {
-                if (has_status) err = "Duplicate frontmatter key: status"
+                if (has_status && err_duplicate == "") err_duplicate = "Duplicate frontmatter key: status"
                 status = val
                 has_status = 1
             } else if (key == "deprecated") {
-                if (has_deprecated) err = "Duplicate frontmatter key: deprecated"
+                if (has_deprecated && err_duplicate == "") err_duplicate = "Duplicate frontmatter key: deprecated"
                 deprecated = val
                 has_deprecated = 1
             } else if (key == "description") {
-                if (has_description) err = "Duplicate frontmatter key: description"
+                if (has_description && err_duplicate == "") err_duplicate = "Duplicate frontmatter key: description"
                 description = val
                 has_description = 1
             } else if (key == "created") {
-                if (has_created) err = "Duplicate frontmatter key: created"
+                if (has_created && err_duplicate == "") err_duplicate = "Duplicate frontmatter key: created"
                 created = val
                 has_created = 1
             } else if (key == "stale_after") {
-                if (has_stale_after) err = "Duplicate frontmatter key: stale_after"
+                if (has_stale_after && err_duplicate == "") err_duplicate = "Duplicate frontmatter key: stale_after"
                 stale_after = val
                 has_stale_after = 1
             } else if (key == "owner") {
-                if (has_owner) err = "Duplicate frontmatter key: owner"
+                if (has_owner && err_duplicate == "") err_duplicate = "Duplicate frontmatter key: owner"
                 owner = val
                 has_owner = 1
             } else if (key == "verified") {
-                if (has_verified) err = "Duplicate frontmatter key: verified"
+                if (has_verified && err_duplicate == "") err_duplicate = "Duplicate frontmatter key: verified"
                 verified = val
                 has_verified = 1
             } else if (key == "sources") {
-                if (has_sources) err = "Duplicate frontmatter key: sources"
+                if (has_sources && err_duplicate == "") err_duplicate = "Duplicate frontmatter key: sources"
                 sources = val
                 has_sources = 1
             } else {
@@ -139,17 +144,24 @@ parse_frontmatter() {
                     unknown_keys = unknown_keys ", " key
                 }
             }
-        } else if (raw !~ /^[ \t]*$/ && raw !~ /^[ \t]*#/) {
-            if (err == "") {
-                err = "Malformed frontmatter line " line_count ": " raw
+        } else if (raw ~ /^[ \t]*#/) {
+            if (err_comments == "") {
+                err_comments = "Comment lines are prohibited in frontmatter (line " line_count ": " raw ")"
+            }
+        } else if (raw ~ /^[ \t]*$/) {
+            if (err_blank == "") {
+                err_blank = "Blank lines are prohibited in frontmatter (line " line_count ")"
+            }
+        } else {
+            if (err_malformed == "") {
+                err_malformed = "Malformed frontmatter line " line_count ": " raw
             }
         }
     }
     END {
-        present_valid_fields = (has_id ? 1 : 0) + (has_name ? 1 : 0) + (has_type ? 1 : 0) + (has_status ? 1 : 0) + (has_deprecated ? 1 : 0) + (has_description ? 1 : 0) + (has_created ? 1 : 0) + (has_stale_after ? 1 : 0) + (has_owner ? 1 : 0) + (has_verified ? 1 : 0) + (has_sources ? 1 : 0)
-        expected_end = 2 + present_valid_fields
-        if (err_delimiter == "" && fm_start == 1 && fm_end > 0 && fm_end != expected_end) {
-            err_delimiter = "Closing delimiter --- must be on line " expected_end " (found on line " fm_end ")"
+        expected_end = (fm_end > 0 ? fm_end : 0)
+        if (unknown_keys != "" && err_unknown == "") {
+            err_unknown = "Unknown frontmatter key(s) prohibited: " unknown_keys
         }
         if (err_delimiter == "" && fm_start == 1 && fm_end == 0) {
             err_delimiter = "Missing closing frontmatter delimiter ---"
@@ -246,6 +258,16 @@ parse_frontmatter() {
         final_err = ""
         if (err_delimiter != "") {
             final_err = err_delimiter
+        } else if (err_malformed != "") {
+            final_err = err_malformed
+        } else if (err_comments != "") {
+            final_err = err_comments
+        } else if (err_blank != "") {
+            final_err = err_blank
+        } else if (err_duplicate != "") {
+            final_err = err_duplicate
+        } else if (err_unknown != "") {
+            final_err = err_unknown
         } else if (err != "") {
             final_err = err
         } else if (validation_err != "") {
@@ -255,6 +277,11 @@ parse_frontmatter() {
         printf "ERR=%s\n", final_err
         printf "ERR_DELIMITER=%s\n", err_delimiter
         printf "ERR_ORDER=%s\n", err_order
+        printf "ERR_DUPLICATE=%s\n", err_duplicate
+        printf "ERR_UNKNOWN=%s\n", err_unknown
+        printf "ERR_COMMENTS=%s\n", err_comments
+        printf "ERR_BLANK=%s\n", err_blank
+        printf "ERR_MALFORMED=%s\n", err_malformed
         printf "EXPECTED_END=%d\n", expected_end
         printf "FM_START=%d\n", fm_start
         printf "FM_END=%d\n", fm_end

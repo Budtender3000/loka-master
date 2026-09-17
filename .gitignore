@@ -31,7 +31,11 @@ Thumbs.db
 # Temporary, scratch, and log files
 *.log
 *.tmp
+*.tmp.*
 *.bak
+*.bak.*
+*.lock
+.loka.lock
 *.zip
 .pipeline-test-backups/
 .buds/
