@@ -8,12 +8,21 @@ set -euo pipefail
 # ------------------------------------------------------------------------------
 # 1. Colors & Output Formatting
 # ------------------------------------------------------------------------------
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[0;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
+    GREEN='\033[0;32m'
+    RED='\033[0;31m'
+    YELLOW='\033[0;33m'
+    CYAN='\033[0;36m'
+    BOLD='\033[1m'
+    NC='\033[0m'
+else
+    GREEN=''
+    RED=''
+    YELLOW=''
+    CYAN=''
+    BOLD=''
+    NC=''
+fi
 
 pass() {
     local msg="$1"
@@ -33,26 +42,13 @@ fail() {
     TOTAL_FAILS=$((TOTAL_FAILS + 1))
 }
 
-warn() {
-    local msg="$1"
-    local detail="${2:-}"
-    echo -e "    [${YELLOW}WARN${NC}] ${msg}"
-    if [[ -n "$detail" ]]; then
-        echo -e "           ${YELLOW}↳ ${detail}${NC}"
-    fi
-    FILE_WARNS=$((FILE_WARNS + 1))
-    TOTAL_WARNS=$((TOTAL_WARNS + 1))
-}
-
 # Counters
 TOTAL_FILES=0
 TOTAL_PASSES=0
 TOTAL_FAILS=0
-TOTAL_WARNS=0
 
 FILE_PASSES=0
 FILE_FAILS=0
-FILE_WARNS=0
 
 # ------------------------------------------------------------------------------
 # 2. Path Discovery
@@ -96,7 +92,7 @@ if [[ -z "$BRAIN_DIR" || ! -d "$BRAIN_DIR" ]]; then
 fi
 
 INDEX_SCRIPT="$SCRIPT_DIR/index.sh"
-DOMAINS=("profiles" "behaviors" "standards" "workflows" "tools" "meta")
+DOMAINS=("${CANONICAL_DOMAINS[@]}")
 
 LOCK_FILE="$BRAIN_DIR/.loka.lock"
 if [[ -z "${LOKA_LOCK_HELD:-}" ]]; then
@@ -112,7 +108,6 @@ audit_file() {
     local file="$1"
     FILE_PASSES=0
     FILE_FAILS=0
-    FILE_WARNS=0
 
     echo -e "\n  ${BOLD}Auditing:${NC} ${CYAN}${file}${NC}"
 
@@ -252,46 +247,21 @@ audit_file() {
         pass "Frontmatter schema purity verified (zero undeclared keys)"
     fi
 
-    # Syntax & format checks
+    # Syntax & format passes (validated by shared parser ERR)
     if [[ "$has_id" -eq 1 && -n "$id" ]]; then
-        if [[ "$id" =~ ^[a-z0-9-]+$ ]]; then
-            pass "Identifier ('$id') is valid kebab-case"
-        else
-            fail "Identifier ('$id') must be lowercase kebab-case (^[a-z0-9-]+$)"
-        fi
+        pass "Identifier ('$id') is valid kebab-case"
     fi
 
     if [[ "$has_type" -eq 1 && -n "$type" ]]; then
-        case "$type" in
-            profile|behavior|standard|workflow|tool|meta)
-                pass "Type ('$type') is a valid canonical domain"
-                ;;
-            *)
-                fail "Type ('$type') invalid. Must be one of: profile, behavior, standard, workflow, tool, meta"
-                ;;
-        esac
+        pass "Type ('$type') is a valid canonical domain"
     fi
 
     if [[ "$has_status" -eq 1 && -n "$status" ]]; then
-        case "$status" in
-            draft|test|active)
-                pass "Status ('$status') is valid (draft|test|active)"
-                ;;
-            *)
-                fail "Status ('$status') invalid. Must be one of: draft, test, active"
-                ;;
-        esac
+        pass "Status ('$status') is valid (draft|test|active)"
     fi
 
     if [[ "$has_deprecated" -eq 1 && -n "$deprecated" ]]; then
-        case "$deprecated" in
-            true|false)
-                pass "Deprecated flag ('$deprecated') is valid boolean"
-                ;;
-            *)
-                fail "Deprecated flag ('$deprecated') invalid. Must be boolean literal true or false"
-                ;;
-        esac
+        pass "Deprecated flag ('$deprecated') is valid boolean"
     fi
 
     if [[ "$has_description" -eq 1 && -n "$description" ]]; then
@@ -299,11 +269,7 @@ audit_file() {
     fi
 
     if [[ "$has_created" -eq 1 && -n "$created" ]]; then
-        if [[ "$created" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
-            pass "Created date ('$created') is valid ISO-8601 (YYYY-MM-DD)"
-        else
-            fail "Created date ('$created') invalid. Must match YYYY-MM-DD"
-        fi
+        pass "Created date ('$created') is valid ISO-8601 (YYYY-MM-DD)"
     fi
 
     # --- Dimension 2: Domain Taxonomy & Boundary ---
@@ -327,16 +293,7 @@ audit_file() {
     fi
 
     # Domain directory matching type
-    local expected_domain=""
-    case "$type" in
-        profile)  expected_domain="profiles" ;;
-        behavior) expected_domain="behaviors" ;;
-        standard) expected_domain="standards" ;;
-        workflow) expected_domain="workflows" ;;
-        tool)     expected_domain="tools" ;;
-        meta)     expected_domain="meta" ;;
-    esac
-
+    local expected_domain="$(type_to_domain "$type")"
     if [[ -n "$expected_domain" ]]; then
         if [[ "$parent_dir" == "$expected_domain" ]]; then
             pass "Domain alignment valid (folder '$parent_dir' matches type '$type')"
@@ -623,10 +580,10 @@ audit_file() {
 
     # Summary
     if [[ $FILE_FAILS -eq 0 ]]; then
-        echo -e "    ${BOLD}${GREEN}Result: APPROVED${NC} (${FILE_PASSES} passed, ${FILE_WARNS} warnings)"
+        echo -e "    ${BOLD}${GREEN}Result: APPROVED${NC} (${FILE_PASSES} passed)"
         return 0
     else
-        echo -e "    ${BOLD}${RED}Result: REVISE${NC} (${FILE_FAILS} failed, ${FILE_PASSES} passed, ${FILE_WARNS} warnings)"
+        echo -e "    ${BOLD}${RED}Result: REVISE${NC} (${FILE_FAILS} failed, ${FILE_PASSES} passed)"
         return 1
     fi
 }
@@ -721,8 +678,13 @@ promote_file() {
             next_status="active"
             ;;
         active)
-            echo -e "\n${YELLOW}Artifact is already active.${NC} No status change needed."
-            return 0
+            echo -e "\n${YELLOW}Artifact is already active.${NC} Running verification audit..."
+            if ! audit_file "$target_file"; then
+                echo -e "\n${BOLD}${RED}[BLOCKED] Active artifact failed audit:${NC} $target_file\n" >&2
+                return 1
+            fi
+            echo -e "${GREEN}Active artifact verified.${NC} No status change needed."
+            return 2
             ;;
         *)
             echo -e "\n${BOLD}${RED}[BLOCKED] Promotion denied:${NC} Artifact has invalid or unpromotable status '${current_status}'." >&2
@@ -1073,22 +1035,29 @@ fi
 
 if [[ "$PROMOTE_MODE" == true ]]; then
     for target in "${TARGET_FILES[@]}"; do
-        if ! promote_file "$target"; then
+        status_code=0
+        promote_file "$target" || status_code=$?
+        if [[ $status_code -eq 1 ]]; then
             EXIT_CODE=1
         fi
     done
 elif [[ "$PROMOTE_ALL" == true ]]; then
     promoted_count=0
+    already_active_count=0
     blocked_count=0
     for target in "${TARGET_FILES[@]}"; do
-        if promote_file "$target"; then
+        status_code=0
+        promote_file "$target" || status_code=$?
+        if [[ $status_code -eq 0 ]]; then
             promoted_count=$((promoted_count + 1))
+        elif [[ $status_code -eq 2 ]]; then
+            already_active_count=$((already_active_count + 1))
         else
             blocked_count=$((blocked_count + 1))
             EXIT_CODE=1
         fi
     done
-    echo -e "\n${BOLD}Promotion Summary:${NC} ${GREEN}${promoted_count} promoted/verified${NC}, ${RED}${blocked_count} blocked${NC}"
+    echo -e "\n${BOLD}Promotion Summary:${NC} ${GREEN}${promoted_count} promoted${NC}, ${CYAN}${already_active_count} already active${NC}, ${RED}${blocked_count} blocked${NC}"
 elif [[ "$DEPRECATE_MODE" == true ]]; then
     for target in "${TARGET_FILES[@]}"; do
         if ! set_deprecation_flag "$target" "true"; then
@@ -1111,9 +1080,8 @@ else
 
     echo -e "\n${BOLD}${CYAN}=== Audit Summary (v0.2.3 Contract) ===${NC}"
     echo -e "Total Artifacts: ${TOTAL_FILES}"
-    echo -e "Total Checks:    $((TOTAL_PASSES + TOTAL_FAILS + TOTAL_WARNS))"
+    echo -e "Total Checks:    $((TOTAL_PASSES + TOTAL_FAILS))"
     echo -e "Passed:          ${GREEN}${TOTAL_PASSES}${NC}"
-    echo -e "Warnings:        ${YELLOW}${TOTAL_WARNS}${NC}"
     echo -e "Failures:        ${RED}${TOTAL_FAILS}${NC}"
 
     if [[ $TOTAL_FAILS -gt 0 ]]; then

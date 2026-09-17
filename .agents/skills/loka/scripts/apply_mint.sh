@@ -8,12 +8,21 @@ set -euo pipefail
 # ------------------------------------------------------------------------------
 # 1. Colors & Logging
 # ------------------------------------------------------------------------------
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[0;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
+    GREEN='\033[0;32m'
+    RED='\033[0;31m'
+    YELLOW='\033[0;33m'
+    CYAN='\033[0;36m'
+    BOLD='\033[1m'
+    NC='\033[0m'
+else
+    GREEN=''
+    RED=''
+    YELLOW=''
+    CYAN=''
+    BOLD=''
+    NC=''
+fi
 
 log_info() { echo -e "  ${CYAN}INFO:${NC} $*"; }
 log_pass() { echo -e "  [${GREEN}PASS${NC}] $*"; }
@@ -26,6 +35,7 @@ log_warn() { echo -e "  [${YELLOW}WARN${NC}] $*"; }
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 AUDIT_SCRIPT="$SCRIPT_DIR/audit.sh"
 INDEX_SCRIPT="$SCRIPT_DIR/index.sh"
+LIB_PARSER="$SCRIPT_DIR/lib/parse_frontmatter.sh"
 
 if [[ ! -f "$AUDIT_SCRIPT" ]]; then
     log_fail "audit.sh not found at $AUDIT_SCRIPT"
@@ -34,6 +44,9 @@ fi
 if [[ ! -f "$INDEX_SCRIPT" ]]; then
     log_fail "index.sh not found at $INDEX_SCRIPT"
     exit 1
+fi
+if [[ -f "$LIB_PARSER" ]]; then
+    source "$LIB_PARSER"
 fi
 
 BRAIN_DIR="${LOKA_BRAIN_ROOT:-}"
@@ -63,6 +76,7 @@ if [[ -z "$BRAIN_DIR" || ! -d "$BRAIN_DIR" ]]; then
     exit 1
 fi
 
+export LOKA_BRAIN_ROOT="$BRAIN_DIR"
 VAULT_ROOT="$(readlink -f "$BRAIN_DIR")"
 
 # Acquire vault-wide lock across write -> audit -> index -> verify
@@ -93,6 +107,23 @@ usage() {
     echo "  --draft-file         Path to file containing candidate draft markdown (required)"
     echo "  --base-hash          Expected SHA-256 hash of existing file before merge (required for MERGE)"
     echo "  --allow-dirty-vault  Do not exit with failure if full-vault audit fails on pre-existing artifacts"
+    echo ""
+    echo "Exit Codes:"
+    echo "  0   Success"
+    echo "  1   General error / invalid arguments"
+    echo "  10  Target domain directory does not exist or invalid domain"
+    echo "  11  Realpath containment violation (outside vault or path traversal)"
+    echo "  12  Pre-flight failed: Draft contains trailing whitespace"
+    echo "  13  Pre-flight failed: Cryptographic hash mismatch"
+    echo "  14  Pre-flight failed: Target already exists under NEW_MINT"
+    echo "  15  Pre-flight failed: Target does not exist for MERGE"
+    echo "  16  Pre-flight failed: Base hash mismatch for MERGE"
+    echo "  17  Pre-flight failed: Symlinked artifacts are prohibited"
+    echo "  18  Post-write verification failed: Final hash mismatch"
+    echo "  20  Target audit failed (rollback executed)"
+    echo "  21  Index regeneration failed (rollback executed)"
+    echo "  22  Full vault audit failed on pre-existing artifacts (no rollback)"
+    echo "  23  Full vault audit bypassed via --allow-dirty-vault"
     exit 1
 }
 
@@ -314,7 +345,7 @@ if ! bash "$AUDIT_SCRIPT" "$TARGET_REAL"; then
     log_fail "Target audit failed!"
     exit 20
 fi
-log_pass "Target audit passed (SPEC v0.2.1 compliant)"
+log_pass "Target audit passed (SPEC v0.2.3 compliant)"
 
 # Step 3: Regenerate index
 log_info "Regenerating index catalog..."
@@ -342,7 +373,7 @@ if ! bash "$AUDIT_SCRIPT" --all >"$FULL_AUDIT_LOG" 2>&1; then
     fi
 else
     rm -f "$FULL_AUDIT_LOG" || true
-    log_pass "Full vault audit passed (zero errors, zero warnings)"
+    log_pass "Full vault audit passed (zero errors)"
 fi
 
 # All steps succeeded: Disarm rollback trap

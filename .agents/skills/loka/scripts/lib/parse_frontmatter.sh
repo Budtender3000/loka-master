@@ -3,7 +3,61 @@
 # parse_frontmatter.sh — Shared Frontmatter Parser for LOKA Knowledge Artifacts
 # Implements schema.md v0.2.3 contract (canonical key ordering, 4-mandatory-field model with OKF v0.2 trust signals)
 # ==============================================================================
-set -euo pipefail
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    set -euo pipefail
+fi
+
+# ------------------------------------------------------------------------------
+# Output Formatting & Color Gating
+# ------------------------------------------------------------------------------
+if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
+    GREEN='\033[0;32m'
+    RED='\033[0;31m'
+    YELLOW='\033[0;33m'
+    CYAN='\033[0;36m'
+    BOLD='\033[1m'
+    NC='\033[0m'
+else
+    GREEN=''
+    RED=''
+    YELLOW=''
+    CYAN=''
+    BOLD=''
+    NC=''
+fi
+
+# ------------------------------------------------------------------------------
+# Canonical Domain & Schema Enums (Single Source of Truth)
+# ------------------------------------------------------------------------------
+CANONICAL_DOMAINS=("profiles" "behaviors" "standards" "workflows" "tools" "meta")
+CANONICAL_TYPES=("profile" "behavior" "standard" "workflow" "tool" "meta")
+CANONICAL_STATUSES=("draft" "test" "active")
+
+type_to_domain() {
+    local t="$1"
+    case "$t" in
+        profile)  echo "profiles" ;;
+        behavior) echo "behaviors" ;;
+        standard) echo "standards" ;;
+        workflow) echo "workflows" ;;
+        tool)     echo "tools" ;;
+        meta)     echo "meta" ;;
+        *)        echo "" ;;
+    esac
+}
+
+domain_to_type() {
+    local d="$1"
+    case "$d" in
+        profiles)  echo "profile" ;;
+        behaviors) echo "behavior" ;;
+        standards) echo "standard" ;;
+        workflows) echo "workflow" ;;
+        tools)     echo "tool" ;;
+        meta)      echo "meta" ;;
+        *)         echo "" ;;
+    esac
+}
 
 parse_frontmatter() {
     local target_file="$1"

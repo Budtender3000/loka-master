@@ -58,7 +58,7 @@ if [[ -z "${LOKA_LOCK_HELD:-}" ]]; then
 fi
 
 INDEX_FILE="$BRAIN_DIR/index.md"
-DOMAINS=("profiles" "behaviors" "standards" "workflows" "tools" "meta")
+DOMAINS=("${CANONICAL_DOMAINS[@]}")
 
 START_MARKER="<!-- AUTO-INDEX:START -->"
 END_MARKER="<!-- AUTO-INDEX:END -->"
@@ -140,7 +140,6 @@ for domain in "${DOMAINS[@]}"; do
         deprecated=""
         description=""
         created=""
-        owner=""
 
         while IFS='=' read -r k v; do
             case "$k" in
@@ -152,7 +151,6 @@ for domain in "${DOMAINS[@]}"; do
                 DEPRECATED) deprecated="$v" ;;
                 DESCRIPTION) description="$v" ;;
                 CREATED) created="$v" ;;
-                OWNER) owner="$v" ;;
             esac
         done < <(parse_frontmatter "$file")
 
@@ -163,7 +161,7 @@ for domain in "${DOMAINS[@]}"; do
         fi
 
         # Hard-fail if any frontmatter value contains an index marker string
-        for test_val in "$name" "$type" "$status" "$deprecated" "$description" "$created" "$owner" "$id"; do
+        for test_val in "$name" "$type" "$status" "$deprecated" "$description" "$created" "$id"; do
             if [[ "$test_val" == *"$START_MARKER"* || "$test_val" == *"$END_MARKER"* ]]; then
                 echo "ERROR: Artifact '$file' contains index marker string in frontmatter value: '$test_val'" >&2
                 exit 5
@@ -171,20 +169,12 @@ for domain in "${DOMAINS[@]}"; do
         done
 
         # Validate domain folder matches type
-        expected_domain=""
-        case "$type" in
-            profile)  expected_domain="profiles" ;;
-            behavior) expected_domain="behaviors" ;;
-            standard) expected_domain="standards" ;;
-            workflow) expected_domain="workflows" ;;
-            tool)     expected_domain="tools" ;;
-            meta)     expected_domain="meta" ;;
-            *)
-                echo "ERROR: Artifact '$file' type ('$type') is not a canonical domain" >&2
-                has_error=true
-                continue
-                ;;
-        esac
+        expected_domain="$(type_to_domain "$type")"
+        if [[ -z "$expected_domain" ]]; then
+            echo "ERROR: Artifact '$file' type ('$type') is not a canonical domain" >&2
+            has_error=true
+            continue
+        fi
 
         if [[ "$domain" != "$expected_domain" ]]; then
             echo "ERROR: Artifact '$file' type '$type' does not match domain folder '$domain' (expected '$expected_domain')" >&2
