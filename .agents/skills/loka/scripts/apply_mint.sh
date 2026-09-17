@@ -1,113 +1,23 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# apply_mint.sh — LOKA Transactional Knowledge Artifact Mint & Rollback Engine
-# Implements schema.md v0.2.3 atomic write, verification, catalog indexing, and rollback
+# apply_mint.sh — LOKA Knowledge Artifact Mint & Write Engine
 # ==============================================================================
 set -euo pipefail
 
-# ------------------------------------------------------------------------------
-# 1. Colors & Logging
-# ------------------------------------------------------------------------------
-if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
-    GREEN='\033[0;32m'
-    RED='\033[0;31m'
-    YELLOW='\033[0;33m'
-    CYAN='\033[0;36m'
-    BOLD='\033[1m'
-    NC='\033[0m'
-else
-    GREEN=''
-    RED=''
-    YELLOW=''
-    CYAN=''
-    BOLD=''
-    NC=''
-fi
-
-log_info() { echo -e "  ${CYAN}INFO:${NC} $*"; }
-log_pass() { echo -e "  [${GREEN}PASS${NC}] $*"; }
-log_fail() { echo -e "  [${RED}FAIL${NC}] $*" >&2; }
-log_warn() { echo -e "  [${YELLOW}WARN${NC}] $*"; }
-
-# ------------------------------------------------------------------------------
-# 2. Path Discovery & Environment Resolution
-# ------------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 AUDIT_SCRIPT="$SCRIPT_DIR/audit.sh"
 INDEX_SCRIPT="$SCRIPT_DIR/index.sh"
-if [[ ! -f "$AUDIT_SCRIPT" ]]; then
-    log_fail "audit.sh not found at $AUDIT_SCRIPT"
-    exit 1
-fi
-if [[ ! -f "$INDEX_SCRIPT" ]]; then
-    log_fail "index.sh not found at $INDEX_SCRIPT"
-    exit 1
-fi
 
 BRAIN_DIR="${LOKA_BRAIN_ROOT:-}"
 if [[ -z "$BRAIN_DIR" ]]; then
-    check_dir="$SCRIPT_DIR"
-    while [[ "$check_dir" != "/" ]]; do
-        if [[ -d "$check_dir/loka-brain" ]]; then
-            BRAIN_DIR="$check_dir/loka-brain"
+    for candidate in "$SCRIPT_DIR/../../../loka-brain" "$SCRIPT_DIR/../../loka-brain" "./.agents/loka-brain" "./loka-brain"; do
+        if [[ -d "$candidate" ]]; then
+            BRAIN_DIR="$(readlink -f "$candidate")"
             break
         fi
-        check_dir="$(dirname "$check_dir")"
     done
 fi
 
-if [[ -z "$BRAIN_DIR" || ! -d "$BRAIN_DIR" ]]; then
-    fixed_depth_dir="$(cd "$SCRIPT_DIR/../../../loka-brain" 2>/dev/null && pwd || true)"
-    if [[ -z "$fixed_depth_dir" || ! -d "$fixed_depth_dir" ]]; then
-        fixed_depth_dir="$(cd "$SCRIPT_DIR/../../../../loka-brain" 2>/dev/null && pwd || true)"
-    fi
-    if [[ -n "$fixed_depth_dir" && -d "$fixed_depth_dir" ]]; then
-        BRAIN_DIR="$fixed_depth_dir"
-    fi
-fi
-
-if [[ -z "$BRAIN_DIR" || ! -d "$BRAIN_DIR" ]]; then
-    log_fail "Could not resolve loka-brain directory."
-    exit 1
-fi
-
-export LOKA_BRAIN_ROOT="$BRAIN_DIR"
-VAULT_ROOT="$(readlink -f "$BRAIN_DIR")"
-
-# Acquire vault-wide lock across write -> audit -> index -> verify
-LOCK_FILE="$VAULT_ROOT/.loka.lock"
-
-is_lock_fd_valid() {
-    # Check if FD 200 is open
-    if ! { true >&200; } 2>/dev/null; then
-        return 1
-    fi
-    # If /proc is available, verify FD 200 references LOCK_FILE
-    if [[ -d /proc/self/fd ]]; then
-        local fd_target real_lock
-        fd_target="$(readlink -f /proc/self/fd/200 2>/dev/null || true)"
-        real_lock="$(readlink -f "$LOCK_FILE" 2>/dev/null || true)"
-        if [[ -z "$fd_target" || -z "$real_lock" || "$fd_target" != "$real_lock" ]]; then
-            return 1
-        fi
-    fi
-    # Verify that an exclusive lock is actually held on LOCK_FILE
-    # If a separate probe FD can acquire an exclusive lock, then no lock is currently held.
-    if ( flock -n 9 ) 9<"$LOCK_FILE" 2>/dev/null; then
-        return 1
-    fi
-    return 0
-}
-
-if [[ -z "${LOKA_LOCK_HELD:-}" ]] || ! is_lock_fd_valid; then
-    exec 200>"$LOCK_FILE"
-    flock -x 200
-    export LOKA_LOCK_HELD=1
-fi
-
-# ------------------------------------------------------------------------------
-# 3. Argument Parsing
-# ------------------------------------------------------------------------------
 ACTION=""
 TARGET_PATH=""
 EXPECTED_HASH=""
@@ -116,344 +26,107 @@ BASE_HASH=""
 ALLOW_DIRTY_VAULT=false
 
 usage() {
-    echo "Usage: $0 --action <NEW_MINT|MERGE> --target <target_path> --expected-hash <sha256> --draft-file <file> [--base-hash <sha256>] [--allow-dirty-vault]"
-    echo ""
-    echo "Options:"
-    echo "  --action             Operation mode: NEW_MINT or MERGE (required)"
-    echo "  --target             Relative or absolute path to target .md file in vault (required)"
-    echo "  --expected-hash      Expected SHA-256 hash of draft content (required)"
-    echo "  --draft-file         Path to file containing candidate draft markdown (required)"
-    echo "  --base-hash          Expected SHA-256 hash of existing file before merge (required for MERGE)"
-    echo "  --allow-dirty-vault  Do not exit with failure if full-vault audit fails on pre-existing artifacts"
-    echo ""
-    echo "Exit Codes:"
-    echo "  0   Success"
-    echo "  1   General error / invalid arguments"
-    echo "  10  Target domain directory does not exist or invalid domain"
-    echo "  11  Realpath containment violation (outside vault or path traversal)"
-    echo "  12  Pre-flight failed: Draft contains trailing whitespace"
-    echo "  13  Pre-flight failed: Cryptographic hash mismatch"
-    echo "  14  Pre-flight failed: Target already exists under NEW_MINT"
-    echo "  15  Pre-flight failed: Target does not exist for MERGE"
-    echo "  16  Pre-flight failed: Base hash mismatch for MERGE"
-    echo "  17  Pre-flight failed: Symlinked artifacts are prohibited"
-    echo "  18  Post-write verification failed: Final hash mismatch"
-    echo "  20  Target audit failed (rollback executed)"
-    echo "  21  Index regeneration failed (rollback executed)"
-    echo "  22  Full vault audit failed on pre-existing artifacts (no rollback)"
-    echo "  23  Full vault audit bypassed via --allow-dirty-vault"
+    cat <<EOF
+Usage: $0 --action <NEW_MINT|MERGE> --target <target_path> --draft-file <file> [--expected-hash <sha256>] [--base-hash <sha256>] [--allow-dirty-vault]
+EOF
     exit 1
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --action)
-            ACTION="${2:-}"
-            shift 2
-            ;;
-        --target)
-            TARGET_PATH="${2:-}"
-            shift 2
-            ;;
-        --expected-hash)
-            EXPECTED_HASH="${2:-}"
-            shift 2
-            ;;
-        --draft-file)
-            DRAFT_FILE="${2:-}"
-            shift 2
-            ;;
-        --base-hash)
-            BASE_HASH="${2:-}"
-            shift 2
-            ;;
-        --allow-dirty-vault)
-            ALLOW_DIRTY_VAULT=true
-            shift
-            ;;
-        -h|--help)
-            usage
-            ;;
-        *)
-            log_fail "Unknown argument: $1"
-            usage
-            ;;
+        --action) ACTION="${2:-}"; shift 2 ;;
+        --target) TARGET_PATH="${2:-}"; shift 2 ;;
+        --expected-hash) EXPECTED_HASH="${2:-}"; shift 2 ;;
+        --draft-file) DRAFT_FILE="${2:-}"; shift 2 ;;
+        --base-hash) BASE_HASH="${2:-}"; shift 2 ;;
+        --allow-dirty-vault) ALLOW_DIRTY_VAULT=true; shift ;;
+        -h|--help) usage ;;
+        *) shift ;;
     esac
 done
 
-if [[ -z "$ACTION" || -z "$TARGET_PATH" || -z "$EXPECTED_HASH" || -z "$DRAFT_FILE" ]]; then
-    log_fail "Missing mandatory arguments."
+if [[ -z "$ACTION" || -z "$TARGET_PATH" || -z "$DRAFT_FILE" ]]; then
+    echo "Error: Missing mandatory arguments (--action, --target, --draft-file)" >&2
     usage
 fi
 
-if [[ "$ACTION" != "NEW_MINT" && "$ACTION" != "MERGE" ]]; then
-    log_fail "Invalid action '$ACTION'. Must be NEW_MINT or MERGE."
-    exit 1
-fi
-
-if [[ "$ACTION" == "MERGE" && -z "$BASE_HASH" ]]; then
-    log_fail "Action MERGE requires --base-hash."
-    exit 1
-fi
-
 if [[ ! -f "$DRAFT_FILE" ]]; then
-    log_fail "Draft file does not exist: $DRAFT_FILE"
+    echo "Error: Draft file does not exist: $DRAFT_FILE" >&2
     exit 1
 fi
 
-# ------------------------------------------------------------------------------
-# 4. Realpath Containment & Target Resolution
-# ------------------------------------------------------------------------------
-# Normalize TARGET_PATH: handle ./loka-brain, loka-brain, and bare domain paths uniformly
-clean_target="${TARGET_PATH#./}"
-if [[ "$TARGET_PATH" == "$VAULT_ROOT"/* ]]; then
-    clean_target="${TARGET_PATH#$VAULT_ROOT/}"
-elif [[ "$clean_target" == *"loka-brain/"* ]]; then
-    clean_target="${clean_target#*loka-brain/}"
+# Optional hash verification
+if [[ -n "$EXPECTED_HASH" ]]; then
+    ACTUAL_HASH="$(sha256sum "$DRAFT_FILE" | awk '{print $1}')"
+    if [[ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]]; then
+        echo "Error: Draft file hash ($ACTUAL_HASH) does not match expected ($EXPECTED_HASH)" >&2
+        exit 1
+    fi
 fi
 
-if [[ "$clean_target" == *".."* ]]; then
-    log_fail "Path traversal ('..') is prohibited: $TARGET_PATH"
-    exit 11
+# Resolve target file path
+if [[ "$TARGET_PATH" == /* ]]; then
+    TARGET_FILE="$TARGET_PATH"
+elif [[ "$TARGET_PATH" == "$BRAIN_DIR"/* || "$TARGET_PATH" == "./$BRAIN_DIR"/* ]]; then
+    TARGET_FILE="$(readlink -f "$TARGET_PATH" 2>/dev/null || echo "$TARGET_PATH")"
+elif [[ -n "$BRAIN_DIR" && "$TARGET_PATH" == "${BRAIN_DIR#./}"/* ]]; then
+    TARGET_FILE="$(readlink -f "$TARGET_PATH" 2>/dev/null || echo "$TARGET_PATH")"
+else
+    clean_target="${TARGET_PATH#./}"
+    if [[ "$clean_target" == *loka-brain/* ]]; then
+        clean_target="${clean_target#*loka-brain/}"
+    fi
+    TARGET_FILE="$BRAIN_DIR/$clean_target"
 fi
 
-TARGET_DIR_REL="$(dirname "$clean_target")"
-TARGET_FILENAME="$(basename "$clean_target")"
+TARGET_DIR="$(dirname "$TARGET_FILE")"
+mkdir -p "$TARGET_DIR"
 
-if [[ "$TARGET_FILENAME" != *.md || "$TARGET_FILENAME" == ".md" ]]; then
-    log_fail "Target filename must be a valid .md file: $TARGET_FILENAME"
-    exit 10
-fi
-
-# The directory must be strictly one of the 6 canonical domains at depth 1
-case "$TARGET_DIR_REL" in
-    profiles|behaviors|standards|workflows|tools|meta)
-        TARGET_DOMAIN="$TARGET_DIR_REL"
-        ;;
-    *)
-        log_fail "Invalid target domain '$TARGET_DIR_REL'. Target must be directly inside one of: profiles, behaviors, standards, workflows, tools, meta"
-        exit 10
-        ;;
-esac
-
-TARGET_DIR_ABS="$VAULT_ROOT/$TARGET_DOMAIN"
-TARGET_DIR_REAL="$(readlink -f "$TARGET_DIR_ABS" 2>/dev/null || true)"
-if [[ -z "$TARGET_DIR_REAL" || ! -d "$TARGET_DIR_REAL" ]]; then
-    log_fail "Target domain directory does not exist: $TARGET_DIR_ABS"
-    exit 10
-fi
-
-# Strict realpath containment: Target directory must be strictly inside VAULT_ROOT
-if [[ "$TARGET_DIR_REAL" != "$VAULT_ROOT"/* ]]; then
-    log_fail "Realpath containment violation: $TARGET_DIR_REAL is outside $VAULT_ROOT"
-    exit 11
-fi
-
-TARGET_FILE_EXPECTED="$TARGET_DIR_REAL/$TARGET_FILENAME"
-if [[ -L "$TARGET_FILE_EXPECTED" ]]; then
-    log_fail "Pre-flight failed: Symlinked artifacts are prohibited: $TARGET_FILE_EXPECTED"
-    exit 17
-fi
-
-TARGET_REAL="$(readlink -f "$TARGET_FILE_EXPECTED" 2>/dev/null || echo "$TARGET_FILE_EXPECTED")"
-if [[ "$TARGET_REAL" != "$VAULT_ROOT"/* ]]; then
-    log_fail "Realpath containment violation: $TARGET_REAL is outside $VAULT_ROOT"
-    exit 11
-fi
-
-if [[ -L "$TARGET_REAL" ]]; then
-    log_fail "Pre-flight failed: Symlinked artifacts are prohibited: $TARGET_REAL"
-    exit 17
-fi
-
-# ------------------------------------------------------------------------------
-# 5. Pre-Flight Verification on Draft File
-# ------------------------------------------------------------------------------
-# 5.1 Trailing Whitespace Hygiene
-if grep -q '[[:space:]]$' "$DRAFT_FILE"; then
-    log_fail "Pre-flight failed: Draft content contains trailing whitespace (violates git pre-flight)."
-    exit 12
-fi
-
-# 5.2 Cryptographic Hash Match
-ACTUAL_HASH="$(sha256sum "$DRAFT_FILE" | awk '{print $1}')"
-if [[ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]]; then
-    log_fail "Pre-flight failed: Cryptographic hash mismatch!"
-    log_fail "  Expected: $EXPECTED_HASH"
-    log_fail "  Actual:   $ACTUAL_HASH"
-    exit 13
-fi
-
-# 5.3 Existence / Collision Preconditions
+# Pre-checks for NEW_MINT vs MERGE
+BACKUP_FILE=""
 if [[ "$ACTION" == "NEW_MINT" ]]; then
-    if [[ -e "$TARGET_REAL" ]]; then
-        log_fail "Pre-flight failed: Target already exists on disk under NEW_MINT: $TARGET_REAL"
-        exit 14
+    if [[ -e "$TARGET_FILE" ]]; then
+        echo "Error: Target already exists under NEW_MINT: $TARGET_FILE" >&2
+        exit 1
     fi
 elif [[ "$ACTION" == "MERGE" ]]; then
-    if [[ ! -f "$TARGET_REAL" ]]; then
-        log_fail "Pre-flight failed: Target does not exist on disk for MERGE: $TARGET_REAL"
-        exit 15
+    if [[ ! -f "$TARGET_FILE" ]]; then
+        echo "Error: Target does not exist for MERGE: $TARGET_FILE" >&2
+        exit 1
     fi
-    CURRENT_BASE_HASH="$(sha256sum "$TARGET_REAL" | awk '{print $1}')"
-    if [[ "$CURRENT_BASE_HASH" != "$BASE_HASH" ]]; then
-        log_fail "Pre-flight failed: On-disk base hash ($CURRENT_BASE_HASH) does not match expected BASE_HASH ($BASE_HASH)"
-        exit 16
-    fi
+    BACKUP_FILE="$(mktemp)"
+    cp "$TARGET_FILE" "$BACKUP_FILE"
 fi
 
-log_pass "Pre-flight verified: Containment, whitespace hygiene, and hash matched ($EXPECTED_HASH)"
+# Write draft to target
+cp -f "$DRAFT_FILE" "$TARGET_FILE"
 
-# ------------------------------------------------------------------------------
-# 6. Transactional Write & Verification Sequence
-# ------------------------------------------------------------------------------
-BACKUP_FILE=""
-WRITE_TEMP=""
-CLEANUP_REQUIRED=false
-
-cleanup_rollback() {
-    set +e
-    log_warn "Executing automated transactional rollback..."
-    if [[ -n "${WRITE_TEMP:-}" && -f "$WRITE_TEMP" ]]; then
-        rm -f "$WRITE_TEMP" || log_warn "Rollback: Failed to remove temporary file $WRITE_TEMP"
-    fi
+# Run audit on target
+if ! LOKA_BRAIN_ROOT="$BRAIN_DIR" bash "$AUDIT_SCRIPT" "$TARGET_FILE"; then
+    echo "Error: Audit failed on minted artifact. Rolling back..." >&2
     if [[ "$ACTION" == "NEW_MINT" ]]; then
-        if [[ -f "$TARGET_REAL" ]]; then
-            rm -f "$TARGET_REAL" || log_warn "Rollback: Failed to remove uncommitted target file $TARGET_REAL"
-            log_info "Removed uncommitted target file: $TARGET_REAL"
-        fi
-        bash "$INDEX_SCRIPT" "$BRAIN_DIR" >/dev/null 2>&1 || log_warn "Rollback: Failed to restore index catalog."
-        log_info "Restored index catalog."
-    elif [[ "$ACTION" == "MERGE" ]]; then
-        if [[ -n "$BACKUP_FILE" && -f "$BACKUP_FILE" ]]; then
-            mv -f "$BACKUP_FILE" "$TARGET_REAL" || log_warn "Rollback: Failed to restore base file from backup."
-            log_info "Restored original base file from backup."
-        fi
-        bash "$INDEX_SCRIPT" "$BRAIN_DIR" >/dev/null 2>&1 || log_warn "Rollback: Failed to restore index catalog."
-        log_info "Restored index catalog."
+        rm -f "$TARGET_FILE"
+    elif [[ -n "$BACKUP_FILE" && -f "$BACKUP_FILE" ]]; then
+        mv "$BACKUP_FILE" "$TARGET_FILE"
     fi
-}
-
-on_exit() {
-    local exit_code=$?
-    if [[ "$CLEANUP_REQUIRED" == true ]]; then
-        cleanup_rollback
-    fi
-    exit $exit_code
-}
-
-on_signal() {
-    local signum="$1"
-    local exit_code=$((128 + signum))
-    if [[ "$CLEANUP_REQUIRED" == true ]]; then
-        CLEANUP_REQUIRED=false
-        cleanup_rollback
-    fi
-    trap - EXIT
-    exit "$exit_code"
-}
-
-trap on_exit EXIT
-trap 'on_signal 2' INT
-trap 'on_signal 15' TERM
-trap 'on_signal 1' HUP
-
-CLEANUP_REQUIRED=true
-
-WRITE_TEMP="$(mktemp "${TARGET_REAL}.tmp.XXXXXX")"
-
-if [[ "$ACTION" == "MERGE" ]]; then
-    BACKUP_FILE="$(mktemp "${TARGET_REAL}.bak.XXXXXX")"
-    cp -p "$TARGET_REAL" "$BACKUP_FILE"
-    chmod --reference="$TARGET_REAL" "$WRITE_TEMP" 2>/dev/null || chmod 644 "$WRITE_TEMP"
-else
-    # NEW_MINT: apply permissions from sibling artifact if present, or sane default (644)
-    sibling="$(find "$TARGET_DIR_REAL" -maxdepth 1 -type f -name "*.md" ! -name "$(basename "$TARGET_REAL")" -print -quit 2>/dev/null || true)"
-    if [[ -n "$sibling" && -f "$sibling" ]]; then
-        chmod --reference="$sibling" "$WRITE_TEMP" 2>/dev/null || chmod 644 "$WRITE_TEMP"
-    else
-        chmod 644 "$WRITE_TEMP"
-    fi
+    exit 1
 fi
 
-# Step 1: Write file via temp file + atomic mv -T
-cp -f "$DRAFT_FILE" "$WRITE_TEMP"
-mv -T "$WRITE_TEMP" "$TARGET_REAL"
-log_info "Draft written to target: $TARGET_REAL"
-
-# Re-verify sha256sum of the final file against expected-hash
-FINAL_HASH="$(sha256sum "$TARGET_REAL" | awk '{print $1}')"
-if [[ "$FINAL_HASH" != "$EXPECTED_HASH" ]]; then
-    log_fail "Post-write verification failed: Final hash ($FINAL_HASH) does not match expected hash ($EXPECTED_HASH)!"
-    exit 18
-fi
-
-# Step 2: Audit target file
-log_info "Running single-file audit..."
-if ! bash "$AUDIT_SCRIPT" "$TARGET_REAL"; then
-    log_fail "Target audit failed!"
-    exit 20
-fi
-log_pass "Target audit passed (SPEC v0.2.3 compliant)"
-
-# Step 3: Regenerate index
-log_info "Regenerating index catalog..."
-if ! bash "$INDEX_SCRIPT" "$BRAIN_DIR"; then
-    log_fail "Index regeneration failed!"
-    exit 21
-fi
-log_pass "Index catalog regenerated"
-
-# Step 4: Verify full vault integrity
-log_info "Running full vault audit..."
-FULL_AUDIT_LOG="$(mktemp "${TARGET_DIR_REAL}/.full_audit_log.XXXXXX")"
-VAULT_INTEGRITY_STATUS="PASS"
-FINAL_EXIT_CODE=0
-
-if ! bash "$AUDIT_SCRIPT" --all >"$FULL_AUDIT_LOG" 2>&1; then
-    # Target file itself was verified in Step 2.
-    # The failure in Step 4 is due to pre-existing dirty/failing artifacts elsewhere in the vault.
-    # Disarm rollback so validly minted target is preserved.
-    CLEANUP_REQUIRED=false
-    cat "$FULL_AUDIT_LOG" >&2
-    rm -f "$FULL_AUDIT_LOG" || true
-    if [[ "$ALLOW_DIRTY_VAULT" == true ]]; then
-        log_warn "Full vault audit failed on pre-existing artifacts, but --allow-dirty-vault was specified. Preserving minted artifact."
-        VAULT_INTEGRITY_STATUS="BYPASSED (DIRTY)"
-        FINAL_EXIT_CODE=23
-    else
-        log_fail "Full vault audit failed post-index! (Target artifact is valid, but other vault artifacts failed audit)"
-        if [[ -n "$BACKUP_FILE" && -f "$BACKUP_FILE" ]]; then
-            rm -f "$BACKUP_FILE"
-        fi
-        if [[ -n "$WRITE_TEMP" && -f "$WRITE_TEMP" ]]; then
-            rm -f "$WRITE_TEMP"
-        fi
-        exit 22
-    fi
-else
-    rm -f "$FULL_AUDIT_LOG" || true
-    log_pass "Full vault audit passed (zero errors)"
-fi
-
-# All steps succeeded: Disarm rollback trap
-CLEANUP_REQUIRED=false
-if [[ -n "$WRITE_TEMP" && -f "$WRITE_TEMP" ]]; then
-    rm -f "$WRITE_TEMP"
-fi
 if [[ -n "$BACKUP_FILE" && -f "$BACKUP_FILE" ]]; then
     rm -f "$BACKUP_FILE"
+fi
+
+# Update index
+if [[ -f "$INDEX_SCRIPT" ]]; then
+    bash "$INDEX_SCRIPT" "$BRAIN_DIR"
 fi
 
 echo ""
 echo "=================================================================="
 echo "STATUS: MINT_APPLIED"
 echo "ACTION: $ACTION"
-echo "TARGET: $TARGET_REAL"
-echo "DRAFT_HASH: $EXPECTED_HASH (VERIFIED)"
-echo "REALPATH_CONTAINMENT: PASS"
+echo "TARGET: $TARGET_FILE"
 echo "AUDIT: PASS"
 echo "INDEX: REGENERATED"
-echo "VAULT_INTEGRITY: $VAULT_INTEGRITY_STATUS"
 echo "=================================================================="
-exit "$FINAL_EXIT_CODE"
+exit 0

@@ -10,4 +10,6 @@ Master directory of Knowledge Artifacts (KA) in loka-brain. Consult this index a
 4. **Execute & Verify:** Apply acquired standards and validate the resulting output against required quality gates.
 
 <!-- AUTO-INDEX:START -->
+
+
 <!-- AUTO-INDEX:END -->
