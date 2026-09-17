@@ -62,6 +62,7 @@ parse_frontmatter() {
     in_fm && !closed {
         if ($0 ~ /^---[[:space:]]*$/) {
             closed = 1;
+            print "CLOSING_LINE=" NR;
             exit;
         }
         if ($0 ~ /^[a-zA-Z0-9_]+:[[:space:]]*/) {
@@ -71,11 +72,17 @@ parse_frontmatter() {
             val = substr($0, colon_idx + 1);
             gsub(/^[[:space:]]+|[[:space:]]+$/, "", val);
             # strip surrounding single or double quotes
-            if ((val ~ /^".*"$/) || (val ~ /^\047.*\047$/)) {
+            if ((val ~ /^"[^"]*"$/) || (val ~ /^\047[^\047]*\047$/)) {
                 val = substr(val, 2, length(val) - 2);
             }
             toupper_key = toupper(key);
+            if (toupper_key in seen) {
+                print "ERR=Duplicate frontmatter key: " key;
+            }
+            seen[toupper_key] = 1;
             print toupper_key "=" val;
+        } else {
+            print "ERR=Invalid frontmatter syntax on line " NR ": " $0;
         }
     }
     END {

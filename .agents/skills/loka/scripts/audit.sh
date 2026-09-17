@@ -84,35 +84,93 @@ audit_file() {
     # 1. Delimiter & Frontmatter basic syntax
     local first_line
     first_line="$(head -n 1 "$file")"
-    if [[ "$first_line" != "---"* ]]; then
+    if [[ ! "$first_line" =~ ^---[[:space:]]*$ ]]; then
         fail "Line 1 is not opening delimiter ---" "$file"
         file_fails=$((file_fails + 1))
     else
         pass "Opening delimiter --- present on line 1"
     fi
 
+    # Helper for relative key ordering
+    key_rank() {
+        case "$1" in
+            ID) echo 1 ;;
+            NAME) echo 2 ;;
+            TYPE) echo 3 ;;
+            STATUS) echo 4 ;;
+            DEPRECATED) echo 5 ;;
+            DESCRIPTION) echo 6 ;;
+            CREATED) echo 7 ;;
+            STALE_AFTER) echo 8 ;;
+            OWNER) echo 9 ;;
+            VERIFIED) echo 10 ;;
+            SOURCES) echo 11 ;;
+            *) echo 99 ;;
+        esac
+    }
+
     # Read frontmatter fields
-    local id="" name="" type="" status="" deprecated="" description="" created="" stale_after="" verified="" err=""
+    local id="" name="" type="" status="" deprecated="" description="" created=""
+    local stale_after="" owner="" verified="" sources="" closing_line=""
+    local err="" unknown_keys=() field_count=0
+    local current_rank=0 order_valid=true
+
     while IFS='=' read -r k v; do
         case "$k" in
-            ID) id="$v" ;;
-            NAME) name="$v" ;;
-            TYPE) type="$v" ;;
-            STATUS) status="$v" ;;
-            DEPRECATED) deprecated="$v" ;;
-            DESCRIPTION) description="$v" ;;
-            CREATED) created="$v" ;;
-            STALE_AFTER) stale_after="$v" ;;
-            VERIFIED) verified="$v" ;;
-            ERR*) err="$v" ;;
+            ID) id="$v"; field_count=$((field_count + 1)) ;;
+            NAME) name="$v"; field_count=$((field_count + 1)) ;;
+            TYPE) type="$v"; field_count=$((field_count + 1)) ;;
+            STATUS) status="$v"; field_count=$((field_count + 1)) ;;
+            DEPRECATED) deprecated="$v"; field_count=$((field_count + 1)) ;;
+            DESCRIPTION) description="$v"; field_count=$((field_count + 1)) ;;
+            CREATED) created="$v"; field_count=$((field_count + 1)) ;;
+            STALE_AFTER) stale_after="$v"; field_count=$((field_count + 1)) ;;
+            OWNER) owner="$v"; field_count=$((field_count + 1)) ;;
+            VERIFIED) verified="$v"; field_count=$((field_count + 1)) ;;
+            SOURCES) sources="$v"; field_count=$((field_count + 1)) ;;
+            CLOSING_LINE) closing_line="$v"; continue ;;
+            ERR*) err="$v"; continue ;;
+            *) unknown_keys+=("$k"); continue ;;
         esac
+
+        local rank
+        rank="$(key_rank "$k")"
+        if [[ "$rank" -le "$current_rank" && "$rank" -ne 99 ]]; then
+            order_valid=false
+        fi
+        current_rank="$rank"
     done < <(parse_frontmatter "$file")
 
     if [[ -n "$err" ]]; then
         fail "Frontmatter parsing error: $err" "$file"
         file_fails=$((file_fails + 1))
     else
-        pass "YAML frontmatter syntax and closing delimiter valid"
+        pass "YAML frontmatter syntax valid"
+    fi
+
+    # Schema Purity Check
+    if [[ ${#unknown_keys[@]} -gt 0 ]]; then
+        fail "Schema purity violation: undeclared frontmatter key(s): ${unknown_keys[*]}" "$file"
+        file_fails=$((file_fails + 1))
+    else
+        pass "Schema purity verified (zero undeclared keys)"
+    fi
+
+    # Closing Delimiter Line Arithmetic
+    local expected_closing_line=$((field_count + 2))
+    if [[ -n "$closing_line" && "$closing_line" -ne "$expected_closing_line" ]]; then
+        fail "Closing delimiter line mismatch (line $closing_line, expected $expected_closing_line for $field_count fields)" "$file"
+        file_fails=$((file_fails + 1))
+    elif [[ -n "$closing_line" ]]; then
+        pass "Closing delimiter arithmetic valid (line $closing_line matches $field_count fields)"
+    fi
+
+    # Canonical Key Order Check
+    if [[ "$order_valid" == false ]]; then
+        fail "Frontmatter keys violate canonical relative order" "$file"
+        file_fails=$((file_fails + 1))
+    else
+        pass "Canonical key order verified"
     fi
 
     # 2. Mandatory Fields
@@ -149,7 +207,7 @@ audit_file() {
         pass "Domain alignment valid (folder '$parent_dir' matches type '$type')"
     fi
 
-    # 5. Optional Enum Validations
+    # 5. Optional Enum & Trust Signal Validations
     if [[ -n "$status" && ! "$status" =~ ^(draft|test|active)$ ]]; then
         fail "Invalid status '$status' (must be draft, test, or active)" "$file"
         file_fails=$((file_fails + 1))
@@ -160,11 +218,43 @@ audit_file() {
     if [[ -n "$deprecated" && ! "$deprecated" =~ ^(true|false)$ ]]; then
         fail "Invalid deprecated value '$deprecated' (must be true or false)" "$file"
         file_fails=$((file_fails + 1))
+    elif [[ -n "$deprecated" ]]; then
+        pass "Deprecated flag is valid ($deprecated)"
     fi
 
     if [[ -n "$created" && ! "$created" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
         fail "Invalid created date '$created' (must be YYYY-MM-DD)" "$file"
         file_fails=$((file_fails + 1))
+    elif [[ -n "$created" ]]; then
+        pass "Created date is valid ($created)"
+    fi
+
+    if [[ -n "$stale_after" && ! "$stale_after" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+        fail "Invalid stale_after date '$stale_after' (must be YYYY-MM-DD)" "$file"
+        file_fails=$((file_fails + 1))
+    elif [[ -n "$stale_after" ]]; then
+        pass "Freshness trust signal (stale_after) is valid ($stale_after)"
+    fi
+
+    if [[ -n "$verified" && ! "$verified" =~ ^(human|attested|automated)$ ]]; then
+        fail "Invalid verified value '$verified' (must be human, attested, or automated)" "$file"
+        file_fails=$((file_fails + 1))
+    elif [[ -n "$verified" ]]; then
+        pass "Trustworthiness signal (verified) is valid ($verified)"
+    fi
+
+    if [[ -n "$sources" && ! "$sources" =~ ^\[.*\]$ ]]; then
+        fail "Invalid sources format '$sources' (must be inline array matching ^\\[.*\\]$)" "$file"
+        file_fails=$((file_fails + 1))
+    elif [[ -n "$sources" ]]; then
+        pass "Provenance signal (sources) is valid"
+    fi
+
+    if [[ -n "$owner" && ! "$owner" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        fail "Invalid owner format '$owner'" "$file"
+        file_fails=$((file_fails + 1))
+    elif [[ -n "$owner" ]]; then
+        pass "Custodian owner signal is valid ($owner)"
     fi
 
     # 6. De-identification & Isolation
@@ -182,12 +272,32 @@ audit_file() {
         pass "Runtime isolation verified (zero buds_* leaks)"
     fi
 
-    # 7. Document Structure & H1 Heading
+    # 7. Document Structure, H1 Heading & Depth
+    local h1_count
+    h1_count="$(awk '
+        NR == 1 && /^---/ { in_fm = 1; next; }
+        in_fm && /^---/ { in_fm = 0; next; }
+        !in_fm {
+            if (/^```/) { in_code = !in_code; next; }
+            if (!in_code && /^# /) { print NR; }
+        }
+    ' "$file" | wc -l)"
+
+    if [[ "$h1_count" -ne 1 ]]; then
+        fail "Document must contain exactly one level-1 heading (# <Title>), found $h1_count" "$file"
+        file_fails=$((file_fails + 1))
+    else
+        pass "Exactly one level-1 heading present"
+    fi
+
     local h1_title
     h1_title="$(awk '
         NR == 1 && /^---/ { in_fm = 1; next; }
         in_fm && /^---/ { in_fm = 0; next; }
-        !in_fm && /^# / { sub(/^# +/, ""); print; exit; }
+        !in_fm {
+            if (/^```/) { in_code = !in_code; next; }
+            if (!in_code && /^# /) { sub(/^# +/, ""); print; exit; }
+        }
     ' "$file")"
 
     if [[ -z "$h1_title" ]]; then
@@ -197,12 +307,28 @@ audit_file() {
         fail "H1 title '$h1_title' does not match frontmatter name '$name'" "$file"
         file_fails=$((file_fails + 1))
     else
-        pass "H1 title matches frontmatter name verbatim"
+        pass "H1 title matches frontmatter name verbatim ('$h1_title')"
     fi
 
-    # 8. Section Sequence & Tokens
+    local invalid_depth
+    invalid_depth="$(awk '
+        /^```/ { in_code = !in_code; next; }
+        !in_code && /^####/ { print NR; exit; }
+    ' "$file")"
+    if [[ -n "$invalid_depth" ]]; then
+        fail "Prohibited heading depth (#### or deeper) on line $invalid_depth" "$file"
+        file_fails=$((file_fails + 1))
+    else
+        pass "Heading depth constraints verified (level 1-3 only)"
+    fi
+
+    # 8. Section Sequence & Tokens (Excluding Code Blocks)
     local h2_headings
-    h2_headings="$(grep -E '^## ' "$file" | sed 's/^## //' | tr '\n' ',' | sed 's/,$//')"
+    h2_headings="$(awk '
+        /^```/ { in_code = !in_code; next; }
+        !in_code && /^## / { sub(/^## /, ""); print; }
+    ' "$file" | tr '\n' ',' | sed 's/,$//')"
+
     if [[ "$h2_headings" != "Context,Mechanism,Rules" && "$h2_headings" != "Context,Mechanism,Implementation,Rules" ]]; then
         fail "H2 sections must be 'Context -> Mechanism -> Rules' or 'Context -> Mechanism -> Implementation -> Rules' (found: '$h2_headings')" "$file"
         file_fails=$((file_fails + 1))
@@ -257,6 +383,47 @@ audit_file() {
         pass "Wikilink table placement check passed"
     fi
 
+    # Internal Wikilink Integrity Check
+    local broken_links=()
+    while IFS= read -r link_target; do
+        [[ -z "$link_target" ]] && continue
+        local found=false
+        if [[ -n "$BRAIN_DIR" && -d "$BRAIN_DIR" ]]; then
+            for d in "${CANONICAL_DOMAINS[@]}"; do
+                if [[ -f "$BRAIN_DIR/$d/$link_target.md" ]]; then
+                    found=true
+                    break
+                fi
+            done
+        fi
+        if [[ "$found" == false ]]; then
+            broken_links+=("$link_target")
+        fi
+    done < <(awk '
+        /^```/ { in_code = !in_code; next; }
+        !in_code {
+            line = $0;
+            while (match(line, /\[\[[a-z0-9-]+(\|[^]]+)?\]\]/)) {
+                link = substr(line, RSTART + 2, RLENGTH - 4);
+                pipe_idx = index(link, "|");
+                if (pipe_idx > 0) {
+                    target = substr(link, 1, pipe_idx - 1);
+                } else {
+                    target = link;
+                }
+                print target;
+                line = substr(line, RSTART + RLENGTH);
+            }
+        }
+    ' "$file")
+
+    if [[ ${#broken_links[@]} -gt 0 ]]; then
+        fail "Broken internal wikilink(s): ${broken_links[*]}" "$file"
+        file_fails=$((file_fails + 1))
+    else
+        pass "Internal wikilink integrity verified"
+    fi
+
     if grep -q '[[:space:]]$' "$file"; then
         fail "Trailing whitespace detected" "$file"
         file_fails=$((file_fails + 1))
@@ -276,17 +443,63 @@ audit_file() {
 # ------------------------------------------------------------------------------
 # Promotion & Deprecation Helpers
 # ------------------------------------------------------------------------------
+update_frontmatter_field() {
+    local target_file="$1"
+    local field_name="$2"
+    local field_value="$3"
+
+    local temp_file="$(mktemp)"
+    awk -v fn="$field_name" -v fv="$field_value" '
+    BEGIN { in_fm = 0; replaced = 0; }
+    NR == 1 && /^---/ { in_fm = 1; print; next; }
+    in_fm && /^---/ {
+        if (!replaced) {
+            print fn ": " fv;
+        }
+        in_fm = 0;
+        print;
+        next;
+    }
+    in_fm {
+        if ($0 ~ ("^" fn ":")) {
+            print fn ": " fv;
+            replaced = 1;
+            next;
+        }
+        if (!replaced) {
+            if (fn == "status" && $0 ~ /^type:/) {
+                print;
+                print fn ": " fv;
+                replaced = 1;
+                next;
+            }
+            if (fn == "deprecated" && ($0 ~ /^status:/ || $0 ~ /^type:/)) {
+                print;
+                print fn ": " fv;
+                replaced = 1;
+                next;
+            }
+        }
+    }
+    { print }
+    ' "$target_file" > "$temp_file"
+
+    chmod --reference="$target_file" "$temp_file" 2>/dev/null || true
+    mv "$temp_file" "$target_file"
+}
+
 promote_file() {
     local target="$1"
     if ! audit_file "$target"; then
-        echo -e "\n${RED}Cannot promote: target artifact failed audit.${NC}" >&2
+        echo -e "\n${RED}Cannot promote: target artifact failed initial audit.${NC}" >&2
         return 1
     fi
 
-    if grep -q "^status:" "$target"; then
-        sed -i 's/^status:.*$/status: active/' "$target"
-    else
-        sed -i '/^type:/a status: active' "$target"
+    update_frontmatter_field "$target" "status" "active"
+
+    if ! audit_file "$target"; then
+        echo -e "\n${RED}Cannot promote: artifact failed audit after modification.${NC}" >&2
+        return 1
     fi
 
     echo -e "\n${GREEN}Promoted to active:${NC} $target"
@@ -300,16 +513,15 @@ set_deprecation() {
     local state="$2" # true or false
 
     if ! audit_file "$target"; then
-        echo -e "\n${RED}Cannot modify: target artifact failed audit.${NC}" >&2
+        echo -e "\n${RED}Cannot modify: target artifact failed initial audit.${NC}" >&2
         return 1
     fi
 
-    if grep -q "^deprecated:" "$target"; then
-        sed -i "s/^deprecated:.*$/deprecated: $state/" "$target"
-    elif grep -q "^status:" "$target"; then
-        sed -i "/^status:/a deprecated: $state" "$target"
-    else
-        sed -i "/^type:/a deprecated: $state" "$target"
+    update_frontmatter_field "$target" "deprecated" "$state"
+
+    if ! audit_file "$target"; then
+        echo -e "\n${RED}Cannot modify: artifact failed audit after modification.${NC}" >&2
+        return 1
     fi
 
     echo -e "\n${GREEN}Updated deprecation flag (deprecated: $state):${NC} $target"

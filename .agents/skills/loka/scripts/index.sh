@@ -45,8 +45,9 @@ fi
 
 # 2. Build Index Content
 TEMP_BLOCK="$(mktemp)"
-cleanup() { rm -f "$TEMP_BLOCK"; }
-trap cleanup EXIT
+TEMP_OUT="$(mktemp)"
+cleanup() { rm -f "$TEMP_BLOCK" "$TEMP_OUT"; }
+trap cleanup EXIT INT TERM
 
 domain_title() {
     case "$1" in
@@ -111,7 +112,6 @@ for domain in "${CANONICAL_DOMAINS[@]}"; do
 done
 
 # 3. Update index.md between markers
-TEMP_OUT="$(mktemp)"
 awk -v start="$START_MARKER" -v end="$END_MARKER" -v block_file="$TEMP_BLOCK" '
 BEGIN { in_auto = 0 }
 $0 ~ start {
@@ -133,5 +133,6 @@ $0 ~ end {
 !in_auto { print $0 }
 ' "$INDEX_FILE" > "$TEMP_OUT"
 
+chmod --reference="$INDEX_FILE" "$TEMP_OUT" 2>/dev/null || true
 mv "$TEMP_OUT" "$INDEX_FILE"
 echo "Index updated: $INDEX_FILE"
