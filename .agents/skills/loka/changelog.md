@@ -1,11 +1,17 @@
 ## Changelog
 
+### v0.2.4
+- **Strict Containment & Realpath Safety:** Enforced canonical `readlink -m` containment against `BRAIN_DIR` and prohibited symlink targets in `scripts/apply_mint.sh`.
+- **Concurrency & Base-Hash Verification:** Implemented mandatory `--base-hash` verification against on-disk target sha256 checksum on `MERGE` to eliminate silent concurrent overwrite hazards.
+- **Signal Trapping & Atomic Rollback:** Added POSIX signal traps (`EXIT INT TERM`) with `ROLLBACK_NEEDED` state tracking across audit, index, and full-vault audit phases.
+- **Strict Schema v0.2.3 Validation:** Restored full enforcement for OKF trust signals (`stale_after`, `verified`, `sources`, `owner`), closing delimiter line arithmetic (`line == field_count + 2`), canonical key ordering, duplicate key rejection, and schema purity against undeclared/legacy keys in `scripts/audit.sh` and `scripts/lib/parse_frontmatter.sh`.
+- **Wikilink Integrity & Code Fence Isolation:** Restored internal wikilink verification against all 6 canonical domain folders, and scoped H2 section scanner to ignore fenced code blocks (` ``` `).
+- **Mutation & File Permission Hygiene:** Scoped frontmatter updates in `promote_file()` and `set_deprecation()` to YAML lines, preserved original file permissions via `chmod --reference` in `scripts/index.sh`, and registered all temp files in cleanup traps.
+
 ### v0.2.3
-- **Radical Script Simplification ("Back to Roots"):** Purged over 1,380 lines of enterprise bloat across all pipeline scripts (`audit.sh`, `apply_mint.sh`, `index.sh`, `lib/parse_frontmatter.sh`), reducing total script footprint by over 56% while preserving 100% CLI interface compatibility and all architectural safety guarantees.
-- **Locking & Bloat De-escalation:** Removed unnecessary flocking, probe file descriptors, `/proc/self/fd` inspections, and convoluted multi-phase rollback cascades while retaining clean, standard POSIX signal traps (`EXIT INT TERM`).
-- **Strict Containment & Hash Verification:** Enforced canonical `readlink -m` containment against `BRAIN_DIR`, symlink target rejection, and `--base-hash` verification on `MERGE` to eliminate silent concurrent overwrite hazards.
-- **Strict Schema v0.2.3 Validation:** Fully enforced OKF trust signals (`stale_after`, `verified`, `sources`, `owner`), closing delimiter line arithmetic (`line == field_count + 2`), canonical key ordering, duplicate key detection, schema purity against unknown/undeclared keys, internal wikilink integrity, and code-fence-isolated heading checks.
-- **Mutation & File Permission Hygiene:** Scoped frontmatter updates in `promote_file()` and `set_deprecation()` to YAML frontmatter lines, preserved original file permissions via `chmod --reference` in `index.sh`, and registered all temp files in cleanup traps.
+- **Radical Script Simplification ("Back to Roots"):** Purged over 1,380 lines of enterprise bloat across all pipeline scripts (`audit.sh`, `apply_mint.sh`, `index.sh`, `lib/parse_frontmatter.sh`), reducing total script footprint by over 56% while preserving 100% CLI interface compatibility.
+- **Locking & Concurrency Purge:** Removed vault-wide file-locking (`flock`), probe file descriptor checks, `/proc/self/fd` inspections, and multi-phase exit 22/23 dirty-vault error cascades.
+- **Lightweight Core Suite:** Streamlined `audit.sh` and `index.sh` into fast, transparent tools enforcing schema invariants without bloated multi-pass fallback layers.
 
 ### v0.2.2
 - **Shared Frontmatter Parser Isolation & Diagnostics:** Removed `#`-comment stripping and quote-cut heuristics in `scripts/lib/parse_frontmatter.sh` to preserve literal scalar content. Exported structured, distinct parser error channels (`ERR_DUPLICATE`, `ERR_UNKNOWN`, `ERR_COMMENTS`, `ERR_BLANK`, `ERR_MALFORMED`), established single-source-of-truth domain enums (`CANONICAL_DOMAINS`, `type_to_domain()`, `domain_to_type()`), and guarded `set -euo pipefail` behind `BASH_SOURCE == $0` to prevent caller shell pollution upon sourcing.

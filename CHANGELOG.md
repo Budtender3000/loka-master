@@ -22,6 +22,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Retrospective Prompt Target:** Updated `retrospective.prompt.md` target path to `.agents/loka-brain/retrospectives.md` and sanitized legacy directory initialization.
 - **Tooling Discovery:** Purged legacy uppercase `LOKA-brain` fallback paths from `apply_mint.sh`, `audit.sh`, and `index.sh`.
 
+## [0.2.4] - 2026-09-17
+
+### Fixed
+- **Pipeline Containment & Realpath Safety:** Enforced canonical `readlink -m` containment against `BRAIN_DIR` and rejected symlink targets in `scripts/apply_mint.sh`.
+- **Merge Concurrency Safety:** Added mandatory `--base-hash` verification against on-disk target sha256 checksum on `MERGE` to prevent silent overwrites.
+- **Strict Schema v0.2.3 Validation:** Restored full enforcement of OKF trust signals (`stale_after`, `verified`, `sources`, `owner`), closing delimiter arithmetic (`line == field_count + 2`), canonical key ordering, duplicate key detection, and schema purity in `audit.sh` and `parse_frontmatter.sh`.
+- **Wikilink Integrity & Code Block Protection:** Restored internal wikilink verification against all canonical domains, and scoped heading extraction to ignore code fence blocks.
+- **Rollback & Permission Hygiene:** Added standard POSIX signal traps (`EXIT INT TERM`) with rollback, preserved permissions in `index.sh` (`chmod --reference`), and scoped frontmatter mutations in `promote_file()` and `set_deprecation()`.
+
+### Changed
+- **Skill Version Bump:** Bumped `loka` skill to `v0.2.4`.
+
+## [0.2.3] - 2026-09-17
+
+### Changed
+- **Radical Script Simplification ("Back to Roots"):** Purged over 1,380 lines of enterprise bloat across all pipeline scripts (`audit.sh`, `apply_mint.sh`, `index.sh`, `lib/parse_frontmatter.sh`), reducing total script footprint by over 56% while preserving 100% CLI interface compatibility.
+- **Concurrency & Locking Purge:** Removed vault-wide file-locking (`flock`), probe file descriptor checks, `/proc/self/fd` inspections, and multi-phase exit 22/23 dirty-vault error cascades.
+
 ## [0.2.0] - 2026-09-15
 
 ### Added
