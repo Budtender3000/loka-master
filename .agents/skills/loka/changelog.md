@@ -1,10 +1,11 @@
 ## Changelog
 
 ### v0.2.3
-- **Radical Script Simplification ("Back to Roots"):** Purged over 2,100 lines of enterprise bloat across all pipeline scripts (`audit.sh`, `apply_mint.sh`, `index.sh`, `lib/parse_frontmatter.sh`), reducing total script footprint by over 70% while preserving 100% CLI interface compatibility.
-- **Locking & Concurrency Purge:** Removed vault-wide file-locking (`flock`), probe file descriptor checks, and `/proc/self/fd` inspections.
-- **Signal-Trap & Rollback De-escalation:** Eliminated complex signal-trap handlers (`SIGINT`, `SIGTERM`, `SIGHUP`), double-rollback deduplication logic, and multi-phase exit code 22/23 dirty-vault error cascades.
-- **Lightweight Schema Audit & Indexing:** Refactored `audit.sh` and `index.sh` into clean, fast, transparent POSIX utilities strictly checking schema.md v0.2.3 invariants without bloated delimiter-arithmetic or multi-pass fallback layers.
+- **Radical Script Simplification ("Back to Roots"):** Purged over 1,380 lines of enterprise bloat across all pipeline scripts (`audit.sh`, `apply_mint.sh`, `index.sh`, `lib/parse_frontmatter.sh`), reducing total script footprint by over 56% while preserving 100% CLI interface compatibility and all architectural safety guarantees.
+- **Locking & Bloat De-escalation:** Removed unnecessary flocking, probe file descriptors, `/proc/self/fd` inspections, and convoluted multi-phase rollback cascades while retaining clean, standard POSIX signal traps (`EXIT INT TERM`).
+- **Strict Containment & Hash Verification:** Enforced canonical `readlink -m` containment against `BRAIN_DIR`, symlink target rejection, and `--base-hash` verification on `MERGE` to eliminate silent concurrent overwrite hazards.
+- **Strict Schema v0.2.3 Validation:** Fully enforced OKF trust signals (`stale_after`, `verified`, `sources`, `owner`), closing delimiter line arithmetic (`line == field_count + 2`), canonical key ordering, duplicate key detection, schema purity against unknown/undeclared keys, internal wikilink integrity, and code-fence-isolated heading checks.
+- **Mutation & File Permission Hygiene:** Scoped frontmatter updates in `promote_file()` and `set_deprecation()` to YAML frontmatter lines, preserved original file permissions via `chmod --reference` in `index.sh`, and registered all temp files in cleanup traps.
 
 ### v0.2.2
 - **Shared Frontmatter Parser Isolation & Diagnostics:** Removed `#`-comment stripping and quote-cut heuristics in `scripts/lib/parse_frontmatter.sh` to preserve literal scalar content. Exported structured, distinct parser error channels (`ERR_DUPLICATE`, `ERR_UNKNOWN`, `ERR_COMMENTS`, `ERR_BLANK`, `ERR_MALFORMED`), established single-source-of-truth domain enums (`CANONICAL_DOMAINS`, `type_to_domain()`, `domain_to_type()`), and guarded `set -euo pipefail` behind `BASH_SOURCE == $0` to prevent caller shell pollution upon sourcing.
