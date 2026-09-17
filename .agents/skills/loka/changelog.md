@@ -1,5 +1,11 @@
 ## Changelog
 
+### v0.2.3
+- **Radical Script Simplification ("Back to Roots"):** Purged over 2,100 lines of enterprise bloat across all pipeline scripts (`audit.sh`, `apply_mint.sh`, `index.sh`, `lib/parse_frontmatter.sh`), reducing total script footprint by over 70% while preserving 100% CLI interface compatibility.
+- **Locking & Concurrency Purge:** Removed vault-wide file-locking (`flock`), probe file descriptor checks, and `/proc/self/fd` inspections.
+- **Signal-Trap & Rollback De-escalation:** Eliminated complex signal-trap handlers (`SIGINT`, `SIGTERM`, `SIGHUP`), double-rollback deduplication logic, and multi-phase exit code 22/23 dirty-vault error cascades.
+- **Lightweight Schema Audit & Indexing:** Refactored `audit.sh` and `index.sh` into clean, fast, transparent POSIX utilities strictly checking schema.md v0.2.3 invariants without bloated delimiter-arithmetic or multi-pass fallback layers.
+
 ### v0.2.2
 - **Shared Frontmatter Parser Isolation & Diagnostics:** Removed `#`-comment stripping and quote-cut heuristics in `scripts/lib/parse_frontmatter.sh` to preserve literal scalar content. Exported structured, distinct parser error channels (`ERR_DUPLICATE`, `ERR_UNKNOWN`, `ERR_COMMENTS`, `ERR_BLANK`, `ERR_MALFORMED`), established single-source-of-truth domain enums (`CANONICAL_DOMAINS`, `type_to_domain()`, `domain_to_type()`), and guarded `set -euo pipefail` behind `BASH_SOURCE == $0` to prevent caller shell pollution upon sourcing.
 - **Transactional Minting & Realpath Safety:** Hardened `scripts/apply_mint.sh` to reject target symlinks before dereferencing (`exit 17`), enforced realpath containment, and added atomic staging via brain-local temporary files with post-write SHA-256 verification (`exit 18`) and `mv -T` rename. Added signal trapping (`EXIT INT TERM HUP`) with `set +e` inside rollback routines, propagated `export LOKA_BRAIN_ROOT="$BRAIN_DIR"` to child processes, and teed full-vault audit logs to stderr on pre-existing vault failures (`exit 22`).
