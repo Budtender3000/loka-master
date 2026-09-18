@@ -85,7 +85,7 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
    TARGET: <TARGET_PATH>
    DRAFT_HASH: <DRAFT_HASH> (VERIFIED)
    REALPATH_CONTAINMENT: PASS
-   AUDIT: PASS
+   FORMAT: PASS
    INDEX: REGENERATED
    VAULT_INTEGRITY: PASS
    ```
@@ -96,14 +96,14 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
    ./.agents/skills/loka/scripts/loka.py <promote|deprecate|undeprecate> "$TARGET_PATH"
    ```
 2. **HANDLE** failure:
-   - If `loka.py` exits with non-zero status, **ABORT** immediately with `STATUS: MUTATION_FAILED_ABORT` and do NOT proceed to catalog regeneration or confirmation audit.
-3. **EXECUTE** catalog regeneration (intentional double-check; promotion already regenerates index internally):
+   - If `loka.py` exits with non-zero status, **ABORT** immediately with `STATUS: MUTATION_FAILED_ABORT` and do NOT proceed to catalog regeneration.
+3. **EXECUTE** formatting:
+   ```bash
+   ./.agents/skills/loka/scripts/loka.py format "$TARGET_PATH"
+   ```
+4. **EXECUTE** catalog regeneration:
    ```bash
    ./.agents/skills/loka/scripts/loka.py index
-   ```
-4. **EXECUTE** confirmation audit:
-   ```bash
-   ./.agents/skills/loka/scripts/loka.py audit "$TARGET_PATH"
    ```
 5. **EMIT** completion report:
    ```text
@@ -112,7 +112,7 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
    TARGET: <TARGET_PATH>
    DRAFT_HASH: <DRAFT_HASH> (VERIFIED)
    REALPATH_CONTAINMENT: PASS
-   AUDIT: PASS
+   FORMAT: PASS
    INDEX: REGENERATED
    ```
 
@@ -125,8 +125,8 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
 - **NEVER** overwrite an existing file during a `MINT` operation.
 - **NEVER** execute a `MERGE` without verified `BASE_CONTENT` matching on-disk `BASE_HASH`.
 - **NEVER** modify any file if `DRAFT_HASH` does not match verbatim.
-- **NEVER** run catalog indexing before the newly written or merged file has passed audit.
-- **NEVER** leave a newly written file on disk if post-mutation audit or index fails.
+- **NEVER** run catalog indexing before formatting has completed.
+- **NEVER** leave a newly written or mutated file on disk if formatting or indexing fails.
 - **NEVER** leave a corrupted index without executing rollback regeneration.
 - **NEVER** execute ad-hoc Git commits, branch operations, or push routines.
 - **NEVER** perform uncontained or speculative file deletions.

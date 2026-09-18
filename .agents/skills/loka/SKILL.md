@@ -22,8 +22,8 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
   [Master: loka-mint-master]                                        [Master: loka-review-master]
   (Read-Only: write_tools: false)                                   (Read-Only: write_tools: false)
    - Classify domain & vault-wide ID check                           - Inspect candidate / transition
-   - Draft SCHEMA v0.3.0 KA & de-identify                            - Evaluate 5 audit dimensions
-   - Verify normative operators & whitespace hygiene                 - Formulate recommendation
+   - Draft SCHEMA v0.3.0 KA & de-identify                            - Evaluate 5 review dimensions
+   - Verify normative operators & whitespace hygiene                 - Formulate gate recommendation
                    │                                                                 │
                    ▼                                                                 ▼
          [Candidate Draft]                                                 [Review Finding]
@@ -43,11 +43,11 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
                                                     │
                                        [Worker: loka-writer]
                                        (Privileged: write_tools: true)
-                                       - Invokes scripts/loka.py mint:
+                                       - Invokes scripts/loka.py mint / promote:
                                          * Enforce realpath containment
                                          * Verify DRAFT_HASH verbatim
                                          * Pre-flight whitespace & existence
-                                         * Atomic write -> loka audit -> loka index
+                                         * Atomic write -> loka format -> loka index
                                          * Automatic rollback if any step fails
 ```
 
@@ -89,7 +89,7 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
 - **HALT** execution and await explicit user confirmation.
 - **DISPATCH** following payload from Orchestrator to Write Worker (`agents/writer-worker.md`) strictly post-approval:
   - `TARGET_PATH`, `BASE_HASH`, `BASE_CONTENT`, `DRAFT_CONTENT`, verified `DRAFT_HASH`.
-- **ENFORCE** transactional execution through `scripts/loka.py mint` (realpath containment, hash verification, `loka audit` before `loka index`, automatic rollback).
+- **ENFORCE** transactional execution through `scripts/loka.py mint` (realpath containment, hash verification, `loka format` before `loka index`, automatic rollback).
 
 *(Consult Architectural Model diagram above for execution flow, pipeline branching, and privilege boundaries.)*
 
@@ -147,8 +147,8 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
      Model="pro"
    )
 4. EVALUATE:
-   - If Action is read-only audit: Present audit report from loka.py audit to user.
-   - If Action is promote/deprecate: Present TARGET_PATH, DRAFT_HASH, transition diff. Await user confirmation at Human Gate.
+   - If Action is read-only review: Present findings and recommendations from loka-review-master to user.
+   - If Action is promote/deprecate: Present TARGET_PATH, proposed transition, and review summary. Await user confirmation at Human Gate.
 5. EXECUTE WRITER: Upon approval, invoke loka-writer (enable_write_tools=true) to execute transition via loka.py promote or loka.py deprecate.
 ```
 
@@ -162,7 +162,6 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
 - **NEVER** allow file mutations outside realpath containment of `./.agents/loka-brain/`.
 - **NEVER** grant write permissions to `loka-mint-master` or `loka-review-master`.
 - **NEVER** persist changes if the computed SHA-256 hash does not match `DRAFT_HASH` verbatim.
-- **NEVER** run catalog indexing before the newly written or merged file has passed audit.
+- **NEVER** retain a newly written or mutated file if formatting or indexing fails.
 - **NEVER** accept host-specific or private system terms (e.g. host-specific containers or internal kernel references) inside Knowledge Artifacts.
 - **NEVER** include the legacy `time` field in newly minted or updated frontmatter.
-- **NEVER** retain a minted or mutated file if the post-write audit check fails any normative invariant.
