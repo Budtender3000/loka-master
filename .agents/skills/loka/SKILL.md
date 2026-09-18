@@ -80,6 +80,7 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
 
 - **SELECT** target master (`mint-master` or `review-master`) per Mode Selection table.
 - **SPAWN** selected Master Subagent in read-only mode (write capabilities strictly disabled).
+- **COMPOSE** all Knowledge Artifacts in concise technical English, synthesizing source input provided in other languages.
 - **TRANSFER** following payload from Master Subagent to Parent Orchestrator (`STATUS: AWAITING_HUMAN`):
   - `TARGET_PATH`, `BASE_HASH` (`NONE` on new mints), `BASE_CONTENT` (`NONE` on new mints), `CANDIDATE_DRAFT`.
 - **COMPUTE** cryptographic `DRAFT_HASH` via `sha256sum` directly from `CANDIDATE_DRAFT`.

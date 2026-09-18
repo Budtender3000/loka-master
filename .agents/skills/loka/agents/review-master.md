@@ -34,6 +34,7 @@ Inspect the actual file content thoroughly across these dimensions:
    - Zero undeclared keys or legacy aliases (e.g. no `time` field).
 2. **Content Substance & Utility:**
    - Problem and solution are clearly articulated and practically actionable.
+   - Authored in technical English across title, description, body prose, and rules.
    - Structural flow follows standard sections: 3-part (`## Context`, `## Mechanism`, `## Rules`) or 4-part (`## Context`, `## Mechanism`, `## Implementation`, `## Rules`).
    - Heading depth respects levels 2 (`##`) and 3 (`###`) only; level 4 (`####`) or deeper is prohibited.
    - Code fences include proper language identifier tags.

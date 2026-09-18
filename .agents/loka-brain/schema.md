@@ -125,6 +125,7 @@ Every Knowledge Artifact must conform to one of the following two exact H2 headi
 - **Internal Link Integrity:** All internal wikilinks (`[[target]]` or `[[target|label]]`) must resolve to a valid existing Knowledge Artifact in one of the 6 canonical domain folders.
 - **De-Identification:** Document bodies must not contain hardcoded local host filesystem paths (`/home/`, `/mnt/`, `/tmp/`, `/root/`).
 - **Runtime Isolation:** BUDS-specific terms, modules, or identifiers (`BUDTENDER_KERNEL`, `BUDS_*`, `buds_*`) are strictly prohibited.
+- **Language Standard:** Knowledge Artifact frontmatter fields, headings, prose, and rules are authored in technical English.
 - **Whitespace Hygiene:** Zero trailing whitespace across the entire document.
 
 ---
