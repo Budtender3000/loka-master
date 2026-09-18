@@ -66,6 +66,14 @@ CANONICAL_KEY_ORDER: Tuple[str, ...] = (
 
 ALLOWED_KEYS = set(CANONICAL_KEY_ORDER)
 
+FATAL_PARSE_CODES: Tuple[str, ...] = (
+    "missing_opening_delimiter",
+    "missing_closing_delimiter",
+    "duplicate_key",
+    "invalid_syntax",
+    "invalid_key_name",
+)
+
 
 def domain_to_type(domain: str) -> str:
     """Return artifact type corresponding to a canonical domain directory."""

@@ -37,7 +37,7 @@ You are strictly read-only (`enable_write_tools: false`). You orchestrate classi
 ### 3. Phase 2 — SCHEMA v0.3.0 Drafting & De-Identification
 
 1. **GENERATE** frontmatter strictly according to schema.md v0.3.0:
-   - Key order: `id`, `name`, `type`, `description`, `status`, `deprecated`, `created`, `stale_after`, `owner`, `verified`, `sources`.
+   - Key order: `id`, `name`, `type`, `status`, `deprecated`, `description`, `created`, `stale_after`, `owner`, `verified`, `sources`.
    - `id`: Lowercase kebab-case string (`^[a-z0-9-]+$`) matching filename stem exactly.
    - `name`: Human-readable title matching the `# <Title>` header verbatim.
    - `type`: Exact domain matching target folder (`profile|behavior|standard|workflow|tool|meta`).

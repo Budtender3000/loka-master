@@ -1,9 +1,11 @@
 ## Changelog
 
 ### v0.3.0
-- **Unified Python CLI Suite:** Replaced legacy Bash/AWK scripts (`apply_mint.sh`, `audit.py`, `index.py`, `parse_frontmatter.sh`) with modular Python CLI `scripts/loka.py` and libraries (`lib/frontmatter.py`, `lib/formatter.py`, `lib/indexer.py`).
-- **Schema v0.3.0 Alignment:** Aligned `SKILL.md`, `mint-master.md`, `review-master.md`, and `writer-worker.md` with schema v0.3.0: compact closing delimiters directly after the final key, single key per line key density, removal of Section 3.4 tokens, unconditional double-quoting of sources array items, and binary PASS/FAIL quality gates without warnings.
-- **Single-Step Lifecycle Promotion:** Enforced strict single-step transitions (`draft` → `test`, `test` → `active`) across review master and writer worker.
+- **Unified Python CLI Suite:** Replaced legacy Bash/AWK scripts (`apply_mint.sh`, `audit.py`, `index.py`, `parse_frontmatter.sh`) with modular Python CLI `scripts/loka.py` and libraries (`lib/frontmatter.py`, `lib/formatter.py`, `lib/indexer.py`, `lib/lifecycle.py`).
+- **Complete Lifecycle & Minting Engine:** Implemented single-step `promote` (`draft` → `test` → `active`), `deprecate`, `undeprecate`, and transactional `mint` (`NEW_MINT`, `MERGE`) with realpath containment, SHA-256 draft/base hash validation, and automatic rollback on failure.
+- **Auditor Bloat Purged & Review Master Modernization:** Decoupled `review-master.md` and `writer-worker.md` from external audit scripts in favor of an intelligent 5-dimension semantic peer reviewer, delegating mechanical formatting to `loka format` and catalog regeneration to `loka index`.
+- **Schema v0.3.0 Alignment:** Aligned all agents and tooling with schema v0.3.0: compact closing delimiters directly after the final key, single key per line key density, removal of Section 3.4 tokens, double-quoting conditions, and binary PASS/FAIL quality gates.
+- **50 Comprehensive Unit & Integration Tests:** Complete test coverage across frontmatter parsing, mechanical formatting idempotency, deterministic indexing, lifecycle transitions, transactional minting, and CLI execution in `scripts/tests/`.
 
 ### v0.2.4
 - **Strict Containment & Realpath Safety:** Enforced canonical `readlink -m` containment against `BRAIN_DIR` and prohibited symlink targets in `scripts/apply_mint.sh`.
