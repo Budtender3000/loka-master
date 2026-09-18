@@ -93,17 +93,19 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
 #### For `PROMOTE` / `DEPRECATE` / `UNDEPRECATE`:
 1. **EXECUTE** the approved lifecycle command:
    ```bash
-   ./.agents/skills/loka/scripts/audit.sh --<action> "$TARGET_PATH"
+   ./.agents/skills/loka/scripts/audit.py --<action> "$TARGET_PATH"
    ```
-2. **EXECUTE** catalog regeneration:
+2. **HANDLE** failure:
+   - If `audit.py --<action>` exits with non-zero status, **ABORT** immediately with `STATUS: MUTATION_FAILED_ABORT` and do NOT proceed to catalog regeneration or confirmation audit.
+3. **EXECUTE** catalog regeneration (intentional double-check; `audit.py` already regenerates index internally):
    ```bash
-   ./.agents/skills/loka/scripts/index.sh
+   ./.agents/skills/loka/scripts/index.py
    ```
-3. **EXECUTE** confirmation audit:
+4. **EXECUTE** confirmation audit:
    ```bash
-   ./.agents/skills/loka/scripts/audit.sh "$TARGET_PATH"
+   ./.agents/skills/loka/scripts/audit.py "$TARGET_PATH"
    ```
-4. **EMIT** completion report:
+5. **EMIT** completion report:
    ```text
    STATUS: MUTATION_APPLIED
    ACTION: <ACTION>
@@ -123,8 +125,8 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
 - **NEVER** overwrite an existing file during a `MINT` operation.
 - **NEVER** execute a `MERGE` without verified `BASE_CONTENT` matching on-disk `BASE_HASH`.
 - **NEVER** modify any file if `DRAFT_HASH` does not match verbatim.
-- **NEVER** run `index.sh` before the newly written or merged file has passed `audit.sh`.
-- **NEVER** leave a newly written file on disk if `audit.sh` or `index.sh` fails.
+- **NEVER** run `index.py` before the newly written or merged file has passed `audit.py`.
+- **NEVER** leave a newly written file on disk if `audit.py` or `index.py` fails.
 - **NEVER** leave a corrupted index without executing rollback regeneration.
 - **NEVER** execute ad-hoc Git commits, branch operations, or push routines.
 - **NEVER** perform uncontained or speculative file deletions.

@@ -17,7 +17,7 @@ You are strictly read-only (`enable_write_tools: false`). You never mutate files
    - `promote`: Intent to advance an artifact along the linear lifecycle (`draft` → `test` or `test` → `active`).
    - `deprecate` / `undeprecate`: Intent to toggle the orthogonal deprecation flag.
 2. **EXECUTE** pipeline steps:
-   - Step 1: Mechanical verification via `audit.sh` (provided by parent orchestrator).
+   - Step 1: Mechanical verification via `audit.py` (provided by parent orchestrator).
    - Step 2: Content & Evidence review across the 5 Audit Dimensions.
    - Step 3: Synthesis & Gate Decision (`APPROVED` | `REVISE` | `ESCALATE`).
    - Step 4: Output Human Gate payload for mutating actions or audit report for inspection.
@@ -26,7 +26,7 @@ You are strictly read-only (`enable_write_tools: false`). You never mutate files
 
 1. **RECEIVE & INSPECT** the mechanical audit report executed by the parent orchestrator:
    ```bash
-   ./.agents/skills/loka/scripts/audit.sh <target>
+   ./.agents/skills/loka/scripts/audit.py <target>
    ```
 2. **INSPECT** stdout, stderr, and return code.
 3. **RECORD** any mechanical failures or warnings.
@@ -93,7 +93,7 @@ MECHANICAL_AUDIT: PASS (0 fails, 0 warnings)
 CONTENT_AUDIT: PASS (5/5 dimensions verified)
 
 PROPOSED_COMMAND:
-./.agents/skills/loka/scripts/audit.sh --<action> <target>
+./.agents/skills/loka/scripts/audit.py --<action> <target>
 
 OPTIONS:
 1. Confirm & Execute Transition (requires TARGET_PATH and DRAFT_HASH verification)

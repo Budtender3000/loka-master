@@ -40,14 +40,14 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
                                      (TARGET_PATH + DRAFT_HASH)
                                                    │
                                         (Approved / Confirmed)
-                                                   ▼
+                                                   │
                                       [Worker: loka-writer]
                                       (Privileged: write_tools: true)
                                       - Invokes scripts/apply_mint.sh:
                                         * Enforce realpath containment
                                         * Verify DRAFT_HASH verbatim
                                         * Pre-flight whitespace & existence
-                                        * Atomic write -> audit.sh -> index.sh -> vault audit
+                                        * Atomic write -> audit.py -> index.py -> vault audit
                                         * Automatic rollback if any step fails
 ```
 
@@ -57,9 +57,9 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
 - `agents/review-master.md` — Review and promotion pipeline orchestrator prompt (read-only master).
 - `agents/writer-worker.md` — Execution worker prompt for vault mutations post Human Gate.
 - `scripts/apply_mint.sh` — Transactional Knowledge Artifact mint and rollback engine.
-- `scripts/audit.sh` — Deterministic verification and promotion engine (SCHEMA v0.2.3).
-- `scripts/index.sh` — Vault catalog generator with progressive disclosure descriptions.
-- `scripts/lib/parse_frontmatter.sh` — Order-agnostic frontmatter parser.
+- `scripts/audit.py` — Deterministic verification and promotion engine (SCHEMA v0.2.3).
+- `scripts/index.py` — Vault catalog generator with progressive disclosure descriptions.
+- `scripts/lib/frontmatter.py` — Shared frontmatter parser and domain utilities.
 - `prompts/retrospective.prompt.md` — Standalone context distillation into `./.agents/loka-brain/retrospectives.md`.
 
 ## Mode Selection
@@ -89,7 +89,7 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
 - **HALT** execution and await explicit user confirmation.
 - **DISPATCH** following payload from Orchestrator to Write Worker (`agents/writer-worker.md`) strictly post-approval:
   - `TARGET_PATH`, `BASE_HASH`, `BASE_CONTENT`, `DRAFT_CONTENT`, verified `DRAFT_HASH`.
-- **ENFORCE** transactional execution through `scripts/apply_mint.sh` (realpath containment, hash verification, `audit.sh` before `index.sh`, full vault audit, automatic rollback).
+- **ENFORCE** transactional execution through `scripts/apply_mint.sh` (realpath containment, hash verification, `audit.py` before `index.py`, full vault audit, automatic rollback).
 
 *(Consult Architectural Model diagram above for execution flow, pipeline branching, and privilege boundaries.)*
 
@@ -162,7 +162,7 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
 - **NEVER** allow file mutations outside realpath containment of `./.agents/loka-brain/`.
 - **NEVER** grant write permissions to `loka-mint-master` or `loka-review-master`.
 - **NEVER** persist changes if the computed SHA-256 hash does not match `DRAFT_HASH` verbatim.
-- **NEVER** run `index.sh` before the newly written or merged file has passed `audit.sh`.
+- **NEVER** run `index.py` before the newly written or merged file has passed `audit.py`.
 - **NEVER** accept host-specific or private system terms (e.g. host-specific containers or internal kernel references) inside Knowledge Artifacts.
 - **NEVER** include the legacy `time` field in newly minted or updated frontmatter.
-- **NEVER** retain a minted or mutated file if the post-write `audit.sh` check produces any errors or warnings.
+- **NEVER** retain a minted or mutated file if the post-write `audit.py` check produces any errors or warnings.

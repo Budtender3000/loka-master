@@ -5,8 +5,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-AUDIT_SCRIPT="$SCRIPT_DIR/audit.sh"
-INDEX_SCRIPT="$SCRIPT_DIR/index.sh"
+AUDIT_SCRIPT="$SCRIPT_DIR/audit.py"
+INDEX_SCRIPT="$SCRIPT_DIR/index.py"
 
 BRAIN_DIR="${LOKA_BRAIN_ROOT:-}"
 if [[ -z "$BRAIN_DIR" ]]; then
@@ -59,6 +59,11 @@ fi
 if [[ "$ACTION" != "NEW_MINT" && "$ACTION" != "MERGE" ]]; then
     echo "Error: Invalid action '$ACTION' (must be NEW_MINT or MERGE)" >&2
     usage
+fi
+
+if [[ "$ACTION" == "MERGE" && -z "$BASE_HASH" ]]; then
+    echo "Error: --base-hash is required for MERGE action" >&2
+    exit 1
 fi
 
 if [[ ! -f "$DRAFT_FILE" ]]; then
@@ -153,14 +158,14 @@ ROLLBACK_NEEDED=true
 cp -f "$DRAFT_FILE" "$TARGET_FILE"
 
 # 1. Run audit on target
-if ! LOKA_BRAIN_ROOT="$BRAIN_DIR" bash "$AUDIT_SCRIPT" "$TARGET_FILE"; then
+if ! LOKA_BRAIN_ROOT="$BRAIN_DIR" python3 "$AUDIT_SCRIPT" "$TARGET_FILE"; then
     echo "Error: Audit failed on minted artifact." >&2
     exit 1
 fi
 
 # 2. Update index
 if [[ -f "$INDEX_SCRIPT" ]]; then
-    if ! bash "$INDEX_SCRIPT" "$BRAIN_DIR"; then
+    if ! python3 "$INDEX_SCRIPT" "$BRAIN_DIR"; then
         echo "Error: Index update failed." >&2
         exit 1
     fi
@@ -168,7 +173,7 @@ fi
 
 # 3. Run full-vault audit unless dirty vault is explicitly allowed
 if [[ "$ALLOW_DIRTY_VAULT" == false ]]; then
-    if ! LOKA_BRAIN_ROOT="$BRAIN_DIR" bash "$AUDIT_SCRIPT" --all; then
+    if ! LOKA_BRAIN_ROOT="$BRAIN_DIR" python3 "$AUDIT_SCRIPT" --all; then
         echo "Error: Vault audit failed post-mint." >&2
         exit 1
     fi
