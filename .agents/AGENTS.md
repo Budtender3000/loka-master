@@ -9,7 +9,7 @@
 ## 1. Project Identity & Scope
 
 - **OPERATE** within the confirmed boundary of LOKA (Local Open Knowledge Artifact).
-- **TREAT** `./loka-brain/` as the modular, machine-actionable Knowledge Artifact vault.
+- **TREAT** `./.agents/loka-brain/` as the modular, machine-actionable Knowledge Artifact vault.
 - **CONFINE** all verification lookups and evidence searches strictly to the active workspace.
 - **EXCLUDE** all foreign architecture, private host terminology, and container concepts (including `buds_*` or `BUDTENDER_*`) from this repository.
 
@@ -34,6 +34,7 @@
 - **PROHIBIT** unilateral reorganization, structural modifications, or autonomous schema mutations.
 - **VERIFY** existing notes via search before proposing or creating new files to prevent duplicate structures or identifier collisions.
 - **REPORT** orphaned notes, malformed frontmatter, and broken references directly to the custodian instead of applying silent fixes.
+- **PERMIT** `loka format` to apply mechanical fixes (key order, quoting, blank lines in frontmatter, trailing whitespace, final newline) exclusively upon explicit custodian invocation, emitting a per-file modification report; `loka audit` and `loka index` are strictly read-only and never modify files.
 
 ### 3.2 Risk Tiers & Safety Boundaries
 - **CLASSIFY** every task into one of three deterministic risk tiers: Read-Only Actions, Reversible Actions, or Destructive Actions.
@@ -65,21 +66,20 @@
   - `workflows/`: Deterministic multi-step execution flows and review procedures.
   - `tools/`: Tooling policies, runtime constraints, and agent roles.
   - `meta/`: Architectural records, taxonomy, versioning, and changelog governance.
-- **LOCATE** every knowledge artifact strictly one level deep within its corresponding domain directory (`./loka-brain/<domain>/<filename>.md`).
+- **LOCATE** every knowledge artifact strictly one level deep within its corresponding domain directory (`./.agents/loka-brain/<domain>/<filename>.md`).
 - **PROHIBIT** subdirectories within canonical domain directories.
 - **PROHIBIT** cross-domain artifacts; every artifact must belong strictly to exactly one domain folder.
-- **CONSULT** `./loka-brain/index.md` as the authoritative master catalog for discovering registered knowledge artifacts.
+- **CONSULT** `./.agents/loka-brain/index.md` as the authoritative master catalog for discovering registered knowledge artifacts.
 
 ### 4.2 Context Economy & Economical Reading
 - **APPLY** the Economical Reading doctrine: never ingest entire repositories, the entire vault, or entire domain directories opportunistically; read strictly on demand.
-- **RESTRICT** knowledge retrieval strictly to 1 to 3 essential modules required for the active task via `./loka-brain/index.md`.
+- **RESTRICT** knowledge retrieval strictly to 1 to 3 essential modules required for the active task via `./.agents/loka-brain/index.md`.
 - **JUSTIFY** every file read by referencing specific task requirements.
 - **ESCALATE** unresolvable ambiguities or conflicting candidate modules to custodian clarification instead of guessing.
 
 ### 4.3 Graph Conventions & Link Standards
 - **USE** standard list-based links for internal cross-references to guarantee accurate AST graph parsing and network topology.
-- **PROHIBIT** navigational links inside Markdown table cells (`| [[link]] |`) to prevent AST graph edge extraction corruption.
-- **PROHIBIT** Obsidian tags (`#tag`) anywhere in YAML frontmatter or Markdown body prose outside fenced code blocks.
+- **DELEGATE** syntax constraints on link placement (prohibition of table cell wikilinks) and tag syntax (prohibition of Obsidian `#tag`) to `./.agents/loka-brain/schema.md`.
 - **PROHIBIT** synthetic circular cross-links or breadcrumbs introduced solely to force visual graph density.
 - **PERMIT** terminal leaf nodes with zero outgoing links whenever they represent self-contained operational artifacts.
 - **FORMAT** Git commit hashes strictly as plain inline backticks (e.g. `0d3ac57`), never as `file://` links.
@@ -87,34 +87,35 @@
 ## 5. Format Specifications & Quality Gates
 
 ### 5.1 Schema Purity & Identifier Equality
-- **ENFORCE** strict compliance with `./loka-brain/schema.md` for all Knowledge Artifacts.
-- **CONSULT** `./loka-brain/schema.md` as the normative Single Source of Truth for frontmatter fields, delimiter positioning, heading sequences, mandatory tokens, and code fence tagging.
-- **MANDATE** strictly canonical forms within normative format specifications (`./loka-brain/schema.md`), enforcing a freeze against speculative extensions or backward-compatibility aliases.
+- **ENFORCE** strict compliance with `./.agents/loka-brain/schema.md` for all Knowledge Artifacts.
+- **CONSULT** `./.agents/loka-brain/schema.md` as the normative Single Source of Truth (SSOT) for all Knowledge Artifact format specifications, structural constraints, and syntactic invariants.
+- **MANDATE** strictly canonical forms within normative format specifications (`./.agents/loka-brain/schema.md`), enforcing a freeze against speculative extensions or backward-compatibility aliases.
 - **CLASSIFY** every field in a specification strictly according to its concrete definition in the target domain, prohibiting assumed conceptual equivalents from external frameworks.
 - **DOCUMENT** parser tolerances, legacy aliases, and runtime fallback keys exclusively as non-compliant implementation notes, never as valid normative syntax.
 - **GROUND** all assertions regarding tooling logic, fallback parsers, or runtime flags in exact source file paths and line numbers with verifiable extracts.
-- **REQUIRE** explicit confirmation from the human custodian before modifying format schemas (`./loka-brain/schema.md`) or validation constraints.
+- **REQUIRE** explicit confirmation from the human custodian before modifying format schemas (`./.agents/loka-brain/schema.md`) or validation constraints.
 - **MATCH** the frontmatter `id` to the lowercase kebab-case filename stem verbatim (`id == filename_stem`) without conversion or substitution.
-- **PROHIBIT** hardcoded local host filesystem paths (`/home/`, `/mnt/`, `/tmp/`, `/root/`) in document bodies.
+- **DELEGATE** content de-identification rules (prohibition of local host filesystem paths) to `./.agents/loka-brain/schema.md`.
 
 ### 5.2 Lifecycle Progression & Binary Quality Gates
 - **ENFORCE** a strict one-directional lifecycle progression (`draft` → `test` → `active`) without demotions:
   - `draft`: Initial unpromoted state upon creation; non-authoritative for automated agents.
   - `test`: Empirical validation state under active trial runs or evaluation.
   - `active`: Production-ready, verified operational state with authoritative standing.
+- **ADVANCE** artifacts exactly one lifecycle step per promotion invocation (`draft` → `test`, or `test` → `active`); multi-step skipping and demotions are prohibited.
 - **TREAT** `deprecated: true` artifacts as historical tombstones that maintain graph integrity but must never serve as active operational baselines.
 - **PROHIBIT** physical deletion of deprecated artifacts under the Custodian Mandate.
 - **EVALUATE** all normative specification requirements as strict binary checks (`PASS`/`FAIL`).
 - **PROHIBIT** downgrading normative specification invariants to non-blocking warnings.
 - **HALT** verification and block artifact promotion immediately if any normative invariant fails.
-- **REQUIRE** 100% PASS across all audit dimensions before an artifact transitions from `draft` to `active`.
+- **REQUIRE** 100% PASS across all audit dimensions before an artifact transitions to `active`.
 
 ## 6. Execution & Verification Discipline
 
 ### 6.1 Dynamic Execution Workflow
 - **EXECUTE** non-trivial tasks through a structured 5-stage progression:
   1. Scope Analysis: Deconstruct requirements and identify active operational boundaries.
-  2. Index Lookup: Consult `./loka-brain/index.md` to locate relevant knowledge modules.
+  2. Index Lookup: Consult `./.agents/loka-brain/index.md` to locate relevant knowledge modules.
   3. Targeted Knowledge Retrieval: Retrieve strictly 1 to 3 essential modules under Economical Reading.
   4. Plan Formulation & Execution: Apply retrieved domain standards and execute atomic changes.
   5. Standardized Output Verification: Validate outputs against domain schemas and output contracts before release.

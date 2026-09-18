@@ -1,6 +1,6 @@
 # LOKA Knowledge Artifact Format Schema
 
-- **Specification Version:** 0.2.3
+- **Specification Version:** 0.3.0
 - **Scope:** Normative structural and syntactic format schema for Knowledge Artifacts (`./.agents/loka-brain/`)
 
 ---
@@ -23,7 +23,7 @@ Every Knowledge Artifact must begin on line 1 with a YAML frontmatter block encl
 | `stale_after` | Optional | ISO-8601 Date (`YYYY-MM-DD`) | OKF v0.2 Freshness trust signal matching `^[0-9]{4}-[0-9]{2}-[0-9]{2}$`. Emitted unquoted. |
 | `owner` | Optional | String (UTF-8) | Custodian tracking identifier (e.g. `custodian`). |
 | `verified` | Optional | Enum String | OKF v0.2 Trustworthiness signal: `human`, `attested`, or `automated`. Emitted unquoted. |
-| `sources` | Optional | Inline Array (`["..."]`) | OKF v0.2 Provenance signal: inline JSON/YAML array of URI or source references matching `^\[.*\]$`. |
+| `sources` | Optional | Inline Array (`["..."]`) | OKF v0.2 Provenance signal: inline YAML array of double-quoted URI or source references (`["..."]` or `[]`) matching `^\[.*\]$`. |
 
 ### 1.2 Canonical Key Order & Formatting Rules
 
@@ -41,13 +41,28 @@ created: YYYY-MM-DD
 stale_after: YYYY-MM-DD
 owner: <custodian_identifier>
 verified: <human|attested|automated>
-sources: [<source_url>, ...]
+sources: ["<source_url>", ...]
 ---
 ```
 
-- **Opening Delimiter:** Line 1 (`---`).
-- **Closing Delimiter:** Must reside on line $2 + \text{present\_valid\_fields}$ (`---`). With all 4 mandatory fields present and 0 optional fields, the closing delimiter is on line 6; with all 7 optional fields present, it is on line 13.
-- **Quoting Rules:** `deprecated`, `created`, `stale_after`, and `verified` must remain unquoted literals. `sources` must be an inline array (`["..."]` or `[]`). `description` must remain unquoted unless containing characters with special YAML syntactic meaning (`:`, `{`, `}`, `[`, `]`).
+- **Opening Delimiter:** Line 1 (`---`). No preceding whitespace or empty lines permitted.
+- **Closing Delimiter:** Must appear on the line immediately following the last frontmatter key (`---`).
+- **Key Density:** Exactly one key per line. Blank lines and empty lines inside the frontmatter block are strictly prohibited.
+- **Quoting Rules:**
+  - Literals: `deprecated` must remain an unquoted boolean literal (`false` or `true`). `created`, `stale_after`, and `verified` must remain unquoted literals.
+  - Identifiers: `id`, `type`, `status`, and `owner` must remain unquoted strings.
+  - Inline arrays: `sources` must be an inline array formatted as `["..."]` or `[]`.
+  - String scalars: `name` and `description` must remain unquoted unless double quotes (`"..."`) are required. Values must be enclosed in double quotes if and only if they meet any of the following conditions:
+    - Value is empty (`""`).
+    - Value has leading or trailing whitespace.
+    - Value begins with a YAML special or indicator character: `-`, `?`, `:`, `[`, `{`, `]`, `}`, `,`, `#`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, ``` ` ```.
+    - Value ends with a colon (`:`).
+    - Value contains a colon followed by a space (`: `).
+    - Value contains a space followed by a hash (` #`).
+    - Value contains embedded double quotes (`"`), which must be escaped as `\"`.
+    - Value contains flow collection indicators (`{`, `}`, `[`, `]`).
+    - Value contains control or escape characters (`\n`, `\t`, `\r`).
+    - Value matches a YAML boolean or null literal case-insensitively (`true`, `false`, `yes`, `no`, `null`, `~`).
 - **Schema Purity:** Zero undeclared keys, legacy aliases (such as `time`), or unknown fields are permitted.
 
 ---
@@ -100,13 +115,6 @@ Every Knowledge Artifact must conform to one of the following two exact H2 headi
 3. `## Implementation`
 4. `## Rules`
 
-### 3.4 Mandatory Section Tokens
-
-- **`## Context`:** Must contain explicit `**Problem:**` and `**Solution:**` tokens.
-- **`## Mechanism`:** Must contain explicit `- **Principle:**` and `- **Structure:**` list items.
-- **`## Implementation`:** Optional section for illustrative code fences, schemas, or structural templates.
-- **`## Rules`:** Mandatory bulleted list of normative constraints and operational boundaries.
-
 ---
 
 ## 4. Syntax & Content Hygiene Constraints
@@ -116,6 +124,42 @@ Every Knowledge Artifact must conform to one of the following two exact H2 headi
 - **Table Wikilinks:** Wikilinks enclosed in Markdown table cells (`| [[link]] |`) are prohibited.
 - **Internal Link Integrity:** All internal wikilinks (`[[target]]` or `[[target|label]]`) must resolve to a valid existing Knowledge Artifact in one of the 6 canonical domain folders.
 - **De-Identification:** Document bodies must not contain hardcoded local host filesystem paths (`/home/`, `/mnt/`, `/tmp/`, `/root/`).
-- **Secrets:** Hardcoded tokens, API keys, credentials, or private variables are prohibited.
 - **Runtime Isolation:** BUDS-specific terms, modules, or identifiers (`BUDTENDER_KERNEL`, `BUDS_*`, `buds_*`) are strictly prohibited.
 - **Whitespace Hygiene:** Zero trailing whitespace across the entire document.
+
+---
+
+## 5. Fix Class & Invariant Enforcement
+
+Every requirement in this specification is a normative invariant evaluated as a binary `PASS` or `FAIL`. Non-blocking warnings and severity levels are prohibited.
+
+- **`AUTO-FIX`:** Mechanically remediated exclusively via explicit invocation of `loka format`.
+- **`REPORT`:** Validated by `loka audit`; reports binary `FAIL` upon violation and never modifies files.
+
+| Rule / Invariant | Fix Class | Operational Remediation |
+|---|---|---|
+| Frontmatter key order | `AUTO-FIX` | `loka format` reorders keys to canonical sequence |
+| Frontmatter quoting rules | `AUTO-FIX` | `loka format` normalizes quotes and applies required double quotes |
+| Blank lines in frontmatter | `AUTO-FIX` | `loka format` strips empty lines within frontmatter block |
+| Closing delimiter compactness | `AUTO-FIX` | `loka format` places closing `---` directly after last key |
+| Trailing whitespace | `AUTO-FIX` | `loka format` strips trailing spaces across document |
+| Final newline | `AUTO-FIX` | `loka format` ensures exactly one terminating newline |
+| Opening delimiter presence | `REPORT` | `loka audit` reports missing opening `---` on line 1 |
+| Mandatory field presence (`id`, `name`, `type`, `description`) | `REPORT` | `loka audit` reports missing or empty mandatory fields |
+| Canonical domain & type alignment | `REPORT` | `loka audit` reports mismatch between `type` and parent domain folder |
+| Status & deprecation enum values | `REPORT` | `loka audit` reports invalid `status` or non-boolean `deprecated` |
+| ISO-8601 date format (`created`, `stale_after`) | `REPORT` | `loka audit` reports invalid date format (`YYYY-MM-DD`) |
+| Trust signal values (`verified`) | `REPORT` | `loka audit` reports unapproved `verified` enum values |
+| Sources array syntax | `REPORT` | `loka audit` reports invalid array syntax or non-list values |
+| Schema purity | `REPORT` | `loka audit` reports undeclared, unknown, or legacy keys |
+| Identifier equality (`id == filename_stem`) | `REPORT` | `loka audit` reports mismatch between `id` and filename stem |
+| File placement | `REPORT` | `loka audit` reports artifacts outside canonical domain roots or nested subdirectories |
+| Document title (single H1 matching `name` verbatim) | `REPORT` | `loka audit` reports missing, duplicated, or mismatched H1 |
+| Heading depth | `REPORT` | `loka audit` reports headings at level 4 (`####`) or deeper |
+| Section sequence | `REPORT` | `loka audit` reports non-conforming H2 section sequences |
+| Code fence tagging | `REPORT` | `loka audit` reports untagged code blocks |
+| Obsidian tag prohibition | `REPORT` | `loka audit` reports `#tag` in frontmatter or Markdown body prose |
+| Table wikilink prohibition | `REPORT` | `loka audit` reports wikilinks within Markdown table cells |
+| Internal wikilink integrity | `REPORT` | `loka audit` reports unresolvable target artifacts |
+| Host path de-identification | `REPORT` | `loka audit` reports hardcoded host paths (`/home/`, `/mnt/`, `/tmp/`, `/root/`) |
+| Runtime isolation | `REPORT` | `loka audit` reports foreign runtime identifiers (`buds_*`, `BUDTENDER_KERNEL`) |
