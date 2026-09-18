@@ -1,5 +1,10 @@
 ## Changelog
 
+### v0.3.0
+- **Unified Python CLI Suite:** Replaced legacy Bash/AWK scripts (`apply_mint.sh`, `audit.py`, `index.py`, `parse_frontmatter.sh`) with modular Python CLI `scripts/loka.py` and libraries (`lib/frontmatter.py`, `lib/formatter.py`, `lib/indexer.py`).
+- **Schema v0.3.0 Alignment:** Aligned `SKILL.md`, `mint-master.md`, `review-master.md`, and `writer-worker.md` with schema v0.3.0: compact closing delimiters directly after the final key, single key per line key density, removal of Section 3.4 tokens, unconditional double-quoting of sources array items, and binary PASS/FAIL quality gates without warnings.
+- **Single-Step Lifecycle Promotion:** Enforced strict single-step transitions (`draft` → `test`, `test` → `active`) across review master and writer worker.
+
 ### v0.2.4
 - **Strict Containment & Realpath Safety:** Enforced canonical `readlink -m` containment against `BRAIN_DIR` and prohibited symlink targets in `scripts/apply_mint.sh`.
 - **Concurrency & Base-Hash Verification:** Implemented mandatory `--base-hash` verification against on-disk target sha256 checksum on `MERGE` to eliminate silent concurrent overwrite hazards.

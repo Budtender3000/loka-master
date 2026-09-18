@@ -32,8 +32,8 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
    - For `MERGE`: `TARGET_PATH`, `BASE_HASH`, `BASE_CONTENT`, `DRAFT_HASH`, `DRAFT_CONTENT`.
    - For `PROMOTE` / `DEPRECATE` / `UNDEPRECATE`: `TARGET_PATH`, `DRAFT_HASH`, `ACTION`.
 2. **EXECUTE** In-Memory Structural & Normative Pre-Flight on `DRAFT_CONTENT`:
-   - **ASSERT** valid YAML delimiters (line 1 opening `---`, closing `---` at line 2 + count of present valid fields, lines 6 to 13).
-   - **ASSERT** all mandatory v0.2.3 fields present (`id`, `name`, `type`, `description`).
+   - **ASSERT** valid YAML delimiters (line 1 opening `---`, compact closing `---` immediately following last frontmatter key, exactly one key per line, zero blank lines).
+   - **ASSERT** all mandatory v0.3.0 fields present (`id`, `name`, `type`, `description`).
    - **ASSERT** complete absence of legacy `time` field and undeclared keys.
    - **ASSERT** complete absence of Obsidian tags (`#tag`).
    - **ASSERT** zero trailing whitespace on any line of `DRAFT_CONTENT`.
@@ -56,11 +56,11 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
 ### 3. Execution — Safe Write, Audit, and Index Sequence
 
 #### For `MINT` & `MERGE`:
-1. **DELEGATE** execution to the transactional mint engine `scripts/apply_mint.sh`:
+1. **DELEGATE** execution to the transactional mint CLI `scripts/loka.py mint`:
    - Save `DRAFT_CONTENT` to a secure temporary file: `TEMP_DRAFT="$(mktemp)" && printf '%s\n' "$DRAFT_CONTENT" > "$TEMP_DRAFT"`
    - For `NEW_MINT`:
      ```bash
-     ./.agents/skills/loka/scripts/apply_mint.sh \
+     ./.agents/skills/loka/scripts/loka.py mint \
        --action NEW_MINT \
        --target "$TARGET_PATH" \
        --expected-hash "$DRAFT_HASH" \
@@ -68,7 +68,7 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
      ```
    - For `MERGE`:
      ```bash
-     ./.agents/skills/loka/scripts/apply_mint.sh \
+     ./.agents/skills/loka/scripts/loka.py mint \
        --action MERGE \
        --target "$TARGET_PATH" \
        --expected-hash "$DRAFT_HASH" \
@@ -77,7 +77,7 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
      ```
    - Clean up temporary draft file: `rm -f "$TEMP_DRAFT"`
 2. **HANDLE** failure:
-   - If `apply_mint.sh` exits with non-zero status, it has already executed transactional rollback (removing target or restoring backup, and restoring the catalog).
+   - If `loka.py mint` exits with non-zero status, it has already executed transactional rollback (removing target or restoring backup, and restoring the catalog).
    - Emit `STATUS: TRANSACTION_FAILED_ROLLED_BACK`.
 3. **EMIT** success report upon exit code 0:
    ```text
@@ -93,17 +93,17 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
 #### For `PROMOTE` / `DEPRECATE` / `UNDEPRECATE`:
 1. **EXECUTE** the approved lifecycle command:
    ```bash
-   ./.agents/skills/loka/scripts/audit.py --<action> "$TARGET_PATH"
+   ./.agents/skills/loka/scripts/loka.py <promote|deprecate|undeprecate> "$TARGET_PATH"
    ```
 2. **HANDLE** failure:
-   - If `audit.py --<action>` exits with non-zero status, **ABORT** immediately with `STATUS: MUTATION_FAILED_ABORT` and do NOT proceed to catalog regeneration or confirmation audit.
-3. **EXECUTE** catalog regeneration (intentional double-check; `audit.py` already regenerates index internally):
+   - If `loka.py` exits with non-zero status, **ABORT** immediately with `STATUS: MUTATION_FAILED_ABORT` and do NOT proceed to catalog regeneration or confirmation audit.
+3. **EXECUTE** catalog regeneration (intentional double-check; promotion already regenerates index internally):
    ```bash
-   ./.agents/skills/loka/scripts/index.py
+   ./.agents/skills/loka/scripts/loka.py index
    ```
 4. **EXECUTE** confirmation audit:
    ```bash
-   ./.agents/skills/loka/scripts/audit.py "$TARGET_PATH"
+   ./.agents/skills/loka/scripts/loka.py audit "$TARGET_PATH"
    ```
 5. **EMIT** completion report:
    ```text
@@ -125,8 +125,8 @@ You operate with write privileges (`enable_write_tools: true`). You verify realp
 - **NEVER** overwrite an existing file during a `MINT` operation.
 - **NEVER** execute a `MERGE` without verified `BASE_CONTENT` matching on-disk `BASE_HASH`.
 - **NEVER** modify any file if `DRAFT_HASH` does not match verbatim.
-- **NEVER** run `index.py` before the newly written or merged file has passed `audit.py`.
-- **NEVER** leave a newly written file on disk if `audit.py` or `index.py` fails.
+- **NEVER** run catalog indexing before the newly written or merged file has passed audit.
+- **NEVER** leave a newly written file on disk if post-mutation audit or index fails.
 - **NEVER** leave a corrupted index without executing rollback regeneration.
 - **NEVER** execute ad-hoc Git commits, branch operations, or push routines.
 - **NEVER** perform uncontained or speculative file deletions.
