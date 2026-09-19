@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Session Memory Tracking:** Added `.agents/memories/sessions/` to tracked architecture documentation for factual execution audit trails.
 
 ### Changed
+- **Schema Enforcement Attribution:** Re-attributed `REPORT` class rows in `schema.md` Section 5 to their concrete validators: mapping `status` enum, ISO-8601 dates, and `verified` trust signal enforcement to `check_semantics` (via `loka promote`/`deprecate`/`mint`), and `sources` array syntax plus `deprecated` boolean extraction to `frontmatter.parse`.
 - **Schema Specification v0.3.0:** Upgraded `.agents/loka-brain/schema.md` to specification version 0.3.0. Replaced closing delimiter line formula with compact delimiter invariant (one key per line, no blank lines), codified double-quoting triggers matching `render()`, aligned `sources` array syntax with double quotes, pruned Section 3.4 mandatory section tokens, delegated secret scanning to `loka-git-manager`, and introduced the binary `AUTO-FIX` vs `REPORT` fix class classification.
 - **Unified Governance Architecture:** Consolidated dual `AGENTS.md` contracts into a single authoritative operating contract at `.agents/AGENTS.md`, eliminating empty delegation stubs and rule duplications.
 - **Self-Contained Framework Substrate:** Fully encapsulated LOKA governance, skills, and vault under `.agents/`, eliminating root-level file conflicts for seamless embedding into host repositories.
