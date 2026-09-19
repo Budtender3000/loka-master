@@ -8,12 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Public Release Documentation & Licensing:** Added standard MIT LICENSE and rewrote repository README.md with factual agent operating workflow, verified quickstart lifecycle execution, and CLI command reference.
 - **Frontmatter Semantic Validation:** Added calendar date validation (`created`, `stale_after` matching `YYYY-MM-DD` and verified with `datetime.date.fromisoformat`) and canonical trust signal enum validation (`verified` in `human|attested|automated`) in `check_semantics`, rejecting invalid values across `loka promote`, `deprecate`, and `mint`.
 - **Root Bootstrap Gateway:** Added a minimal, deterministic root `AGENTS.md` serving strictly as an external agent interoperability bootstrap pointing to `.agents/AGENTS.md` with explicit anti-drift constraints.
 - **Skill-Centric Changelogs:** Added dedicated, isolated `changelog.md` ledgers for each core skill (`.agents/skills/loka/`, `.agents/skills/loka-git-manager/`, `.agents/skills/loka-log/`).
 - **Session Memory Tracking:** Added `.agents/memories/sessions/` to tracked architecture documentation for factual execution audit trails.
 
 ### Changed
+- **Operational Substrate Documentation:** Synchronized `.agents/README.md` with schema v0.3.0 and Python CLI architecture (`scripts/loka.py`), updated sequence workflows, aligned CLI commands, and removed host-specific ignore rules in `.gitignore`.
 - **Schema Enforcement Attribution:** Re-attributed `REPORT` class rows in `schema.md` Section 5 to their concrete validators: mapping `status` enum, non-boolean `deprecated`, ISO-8601 dates, `verified` trust signal, and `sources` array syntax enforcement to `check_semantics` (via `loka promote`/`deprecate`/`mint`).
 - **Schema Specification v0.3.0:** Upgraded `.agents/loka-brain/schema.md` to specification version 0.3.0. Replaced closing delimiter line formula with compact delimiter invariant (one key per line, no blank lines), codified double-quoting triggers matching `render()`, aligned `sources` array syntax with double quotes, pruned Section 3.4 mandatory section tokens, delegated secret scanning to `loka-git-manager`, and introduced the binary `AUTO-FIX` vs `REPORT` fix class classification.
 - **Unified Governance Architecture:** Consolidated dual `AGENTS.md` contracts into a single authoritative operating contract at `.agents/AGENTS.md`, eliminating empty delegation stubs and rule duplications.

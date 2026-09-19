@@ -38,8 +38,6 @@ Thumbs.db
 .loka.lock
 *.zip
 .pipeline-test-backups/
-.buds/
-.buds-review/
 scratch/
 tmp/
 
