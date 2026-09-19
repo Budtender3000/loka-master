@@ -8,7 +8,8 @@
 - **Validator Alignment:** Purged stale `loka audit` references across schema and skill definitions, explicitly attributing the `REPORT` class to `loka-review-master` semantic review, and synchronized CLI entry point listing in `SKILL.md` with `loka.py --help`.
 - **Formatter False Positive Fix:** Resolved false-positive `quotes_required` detection in `formatter.py` for valid inline arrays (`sources: ["..."]`) by deriving quote change categories directly from frontmatter value diffs.
 - **Date & Verified Semantic Validation:** Extended `check_semantics` in `lib/frontmatter.py` to validate ISO-8601 calendar dates (`created`, `stale_after`) using `datetime.date.fromisoformat` and canonical trust signals (`verified: human|attested|automated`), rejecting violations during `promote`, `deprecate`, and `mint` lifecycle operations.
-- **54 Comprehensive Unit & Integration Tests:** Complete test coverage across frontmatter parsing, mechanical formatting idempotency, deterministic indexing, lifecycle transitions, transactional minting, and CLI execution in `scripts/tests/`.
+- **Strict Deprecation & Sources Validation:** Stopped coercing invalid `deprecated` values to `false` and wrapping non-array `sources` into `[...]` in `lib/frontmatter.py` and `lib/formatter.py`. Enforced `Problem("invalid_deprecated")` for non-boolean values and `Problem("invalid_sources")` for non-array syntax or unquoted items in `check_semantics`, guaranteeing `loka promote`, `deprecate`, `undeprecate`, `mint`, and `loka format` exit 1 and leave files untouched.
+- **59 Comprehensive Unit & Integration Tests:** Complete test coverage across frontmatter parsing, mechanical formatting idempotency, deterministic indexing, lifecycle transitions, transactional minting, and CLI execution in `scripts/tests/`.
 
 ### v0.2.4
 - **Strict Containment & Realpath Safety:** Enforced canonical `readlink -m` containment against `BRAIN_DIR` and prohibited symlink targets in `scripts/apply_mint.sh`.

@@ -144,6 +144,27 @@ class TestFrontmatterParser(unittest.TestCase):
         fm, body, problems = parse(text)
         self.assertTrue(any(p.code == "invalid_syntax" for p in problems))
 
+    def test_parse_invalid_deprecated_and_sources_kept_raw(self):
+        text = (
+            "---\n"
+            "id: raw-test\n"
+            "name: Raw Test\n"
+            "type: standard\n"
+            "description: Desc\n"
+            "deprecated: nope\n"
+            "sources: nope\n"
+            "---\n"
+        )
+        fm, body, problems = parse(text)
+        codes = [p.code for p in problems]
+        self.assertIn("invalid_deprecated", codes)
+        self.assertIn("invalid_sources", codes)
+        self.assertEqual(fm.get("deprecated"), "nope")
+        self.assertEqual(fm.get("sources"), "nope")
+        rendered = render(fm)
+        self.assertIn("deprecated: nope\n", rendered)
+        self.assertIn("sources: nope\n", rendered)
+
 
 class TestFrontmatterRenderer(unittest.TestCase):
     def test_canonical_key_order(self):
@@ -352,6 +373,89 @@ class TestSemanticChecks(unittest.TestCase):
         problems = check_semantics(fm_bad)
         codes = [p.code for p in problems]
         self.assertIn("invalid_verified", codes)
+
+    def test_valid_and_invalid_deprecated(self):
+        for val in ("true", "false", True, False):
+            fm = Frontmatter(
+                {
+                    "id": "valid-dep",
+                    "name": "Valid Dep",
+                    "type": "standard",
+                    "description": "Desc",
+                    "deprecated": val,
+                }
+            )
+            problems = check_semantics(fm)
+            codes = [p.code for p in problems]
+            self.assertNotIn("invalid_deprecated", codes)
+
+        for bad_val in ("nope", "ture", "1", "yes", "none"):
+            fm_bad = Frontmatter(
+                {
+                    "id": "bad-dep",
+                    "name": "Bad Dep",
+                    "type": "standard",
+                    "description": "Desc",
+                    "deprecated": bad_val,
+                }
+            )
+            problems = check_semantics(fm_bad)
+            codes = [p.code for p in problems]
+            self.assertIn("invalid_deprecated", codes)
+
+    def test_valid_and_invalid_sources(self):
+        fm_valid = Frontmatter(
+            {
+                "id": "valid-sources",
+                "name": "Valid Sources",
+                "type": "standard",
+                "description": "Desc",
+                "sources": ["https://example.com/a", "https://example.com/b"],
+            }
+        )
+        problems = check_semantics(fm_valid)
+        codes = [p.code for p in problems]
+        self.assertNotIn("invalid_sources", codes)
+
+        fm_empty = Frontmatter(
+            {
+                "id": "empty-sources",
+                "name": "Empty Sources",
+                "type": "standard",
+                "description": "Desc",
+                "sources": [],
+            }
+        )
+        problems = check_semantics(fm_empty)
+        codes = [p.code for p in problems]
+        self.assertNotIn("invalid_sources", codes)
+
+        fm_nope = Frontmatter(
+            {
+                "id": "nope-sources",
+                "name": "Nope Sources",
+                "type": "standard",
+                "description": "Desc",
+                "sources": "nope",
+            }
+        )
+        problems = check_semantics(fm_nope)
+        codes = [p.code for p in problems]
+        self.assertIn("invalid_sources", codes)
+
+        fm_unquoted = Frontmatter(
+            {
+                "id": "unquoted-sources",
+                "name": "Unquoted Sources",
+                "type": "standard",
+                "description": "Desc",
+                "sources": ["unquoted"],
+            },
+            raw_sources="[unquoted]",
+        )
+        problems = check_semantics(fm_unquoted)
+        codes = [p.code for p in problems]
+        self.assertIn("invalid_sources", codes)
 
 
 class TestRoundTripEdgeCases(unittest.TestCase):

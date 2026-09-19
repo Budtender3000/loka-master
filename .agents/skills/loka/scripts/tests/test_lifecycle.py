@@ -262,6 +262,57 @@ class TestLifecycle(unittest.TestCase):
         self.assertIn("semantic validation failed", str(ctx.exception).lower())
         self.assertIn("invalid stale_after date", str(ctx.exception).lower())
 
+    def test_lifecycle_rejects_invalid_deprecated_and_sources_and_leaves_bytes_unchanged(self):
+        """Confirm promote, deprecate, and mint reject invalid deprecated/sources and leave file bytes untouched."""
+        import subprocess
+
+        test_cases = [
+            ("bad-dep-nope", "deprecated: nope", "invalid deprecated"),
+            ("bad-dep-ture", "deprecated: ture", "invalid deprecated"),
+            ("bad-sources-nope", "sources: nope", "invalid sources"),
+            ("bad-sources-unquoted", "sources: [unquoted]", "invalid sources"),
+        ]
+
+        for case_id, field_line, expected_msg in test_cases:
+            p = self._create_artifact(
+                "standards",
+                case_id,
+                [
+                    "---",
+                    f"id: {case_id}",
+                    f"name: {case_id}",
+                    "type: standard",
+                    "description: Testing lifecycle rejection",
+                    field_line,
+                    "---",
+                    f"# {case_id}",
+                ],
+            )
+            bytes_before = p.read_bytes()
+
+            # 1. promote_artifact must raise LifecycleError and leave bytes unchanged
+            with self.assertRaises(LifecycleError) as ctx:
+                promote_artifact(p, brain_dir=self.vault)
+            self.assertIn("semantic validation failed", str(ctx.exception).lower())
+            self.assertIn(expected_msg, str(ctx.exception).lower())
+            self.assertEqual(p.read_bytes(), bytes_before)
+
+            # 2. deprecate_artifact must raise LifecycleError and leave bytes unchanged
+            with self.assertRaises(LifecycleError) as ctx:
+                deprecate_artifact(p, brain_dir=self.vault)
+            self.assertIn("semantic validation failed", str(ctx.exception).lower())
+            self.assertIn(expected_msg, str(ctx.exception).lower())
+            self.assertEqual(p.read_bytes(), bytes_before)
+
+            # 3. CLI loka promote must exit 1 and leave bytes untouched
+            proc = subprocess.run(
+                [sys.executable, str(SCRIPTS_DIR / "loka.py"), "promote", str(p), "--vault", str(self.vault)],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc.returncode, 1)
+            self.assertEqual(p.read_bytes(), bytes_before)
+
     # =========================================================================
     # DEPRECATE / UNDEPRECATE TESTS
     # =========================================================================

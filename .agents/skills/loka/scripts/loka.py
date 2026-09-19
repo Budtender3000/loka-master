@@ -71,11 +71,13 @@ def cmd_format(args: argparse.Namespace) -> int:
 
     total_checked = len(files_to_format)
     files_modified = 0
+    had_errors = False
     category_counts: Dict[str, int] = {}
 
     for file_path in files_to_format:
         changed, problems, categories = format_file(file_path, check_only=args.check)
         if problems:
+            had_errors = True
             for prob in problems:
                 sys.stderr.write(f"WARNING: Skipping {file_path}: {prob.message}\n")
             continue
@@ -100,6 +102,8 @@ def cmd_format(args: argparse.Namespace) -> int:
         for cat, count in sorted(category_counts.items()):
             print(f"    - {cat}: {count}")
 
+    if had_errors:
+        return 1
     if args.check and files_modified > 0:
         return 1
     return 0

@@ -193,6 +193,61 @@ class TestFormatter(unittest.TestCase):
             )
             self.assertIn("Files needing changes: 0", proc.stdout)
 
+    def test_formatter_rejects_invalid_deprecated_and_sources(self):
+        """Confirm format_file and format CLI reject invalid deprecated and sources without modifying files."""
+        from lib.formatter import format_file
+        import subprocess
+        import tempfile
+
+        test_cases = [
+            ("bad-dep-nope", "deprecated: nope", "invalid_deprecated"),
+            ("bad-dep-ture", "deprecated: ture", "invalid_deprecated"),
+            ("bad-sources-nope", "sources: nope", "invalid_sources"),
+            ("bad-sources-unquoted", "sources: [unquoted]", "invalid_sources"),
+        ]
+
+        for case_id, field_line, expected_code in test_cases:
+            content = (
+                "---\n"
+                f"id: {case_id}\n"
+                f"name: {case_id}\n"
+                "type: standard\n"
+                "description: Test rejection.\n"
+                f"{field_line}\n"
+                "---\n\n"
+                f"# {case_id}\n"
+            )
+
+            # 1. format_text must leave content untouched
+            self.assertEqual(format_text(content), content)
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                file_path = Path(tmpdir) / f"{case_id}.md"
+                file_path.write_text(content, encoding="utf-8")
+
+                # 2. format_file must not modify file and report problem
+                changed, problems, categories = format_file(file_path)
+                self.assertFalse(changed)
+                self.assertTrue(any(p.code == expected_code for p in problems))
+                self.assertEqual(file_path.read_text(encoding="utf-8"), content)
+
+                # 3. CLI loka format must exit 1 and leave file unchanged
+                proc = subprocess.run(
+                    [sys.executable, str(SCRIPTS_DIR / "loka.py"), "format", str(file_path)],
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(proc.returncode, 1)
+                self.assertEqual(file_path.read_text(encoding="utf-8"), content)
+
+                # 4. CLI loka format --check must exit 1
+                proc_check = subprocess.run(
+                    [sys.executable, str(SCRIPTS_DIR / "loka.py"), "format", "--check", str(file_path)],
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(proc_check.returncode, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

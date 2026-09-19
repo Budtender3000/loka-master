@@ -112,9 +112,16 @@ class Problem(NamedTuple):
 class Frontmatter(dict):
     """Dict subclass storing parsed frontmatter fields with closing line metadata."""
 
-    def __init__(self, *args, closing_line: int = 0, **kwargs):
+    def __init__(
+        self,
+        *args,
+        closing_line: int = 0,
+        raw_sources: Optional[str] = None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.closing_line = closing_line
+        self.raw_sources = raw_sources
 
     def get_closing_line(self) -> int:
         return self.closing_line
@@ -136,6 +143,51 @@ def _parse_inline_list(val_str: str) -> List[str]:
         if item:
             items.append(item)
     return items
+
+
+def _parse_sources_items(val_str: str) -> Tuple[bool, List[str]]:
+    """Parse and validate inline sources array per schema: ["URI", ...].
+
+    Returns (is_valid, parsed_items).
+    """
+    s = val_str.strip()
+    if not (s.startswith("[") and s.endswith("]")):
+        return False, []
+    inner = s[1:-1].strip()
+    if not inner:
+        return True, []
+    tokens: List[str] = []
+    current: List[str] = []
+    in_dquote = False
+    escaped = False
+    for c in inner:
+        if escaped:
+            current.append(c)
+            escaped = False
+        elif c == "\\":
+            current.append(c)
+            escaped = True
+        elif c == '"':
+            current.append(c)
+            in_dquote = not in_dquote
+        elif c == "," and not in_dquote:
+            tokens.append("".join(current).strip())
+            current = []
+        else:
+            current.append(c)
+    if current:
+        tokens.append("".join(current).strip())
+
+    item_re = re.compile(r'^"([^"\\]|\\.)*"$')
+    all_valid = True
+    parsed_items: List[str] = []
+    for t in tokens:
+        if not item_re.match(t):
+            all_valid = False
+            parsed_items.append(t)
+        else:
+            parsed_items.append(_unescape_double_quoted(t[1:-1]))
+    return all_valid, parsed_items
 
 
 def _unescape_double_quoted(s: str) -> str:
@@ -228,17 +280,34 @@ def parse(text: str) -> Tuple[Frontmatter, str, List[Problem]]:
             continue
         seen_keys.add(norm_key)
 
+        # Check deprecated
+        if norm_key == "deprecated":
+            fm[norm_key] = val_str
+            if val_str not in ("true", "false"):
+                problems.append(
+                    Problem("invalid_deprecated", f"Invalid deprecated '{val_str}' (must be true or false)", idx)
+                )
+            continue
+
+        # Check sources
+        if norm_key == "sources":
+            fm.raw_sources = val_str
+            if not re.match(r"^\[.*\]$", val_str):
+                fm[norm_key] = val_str
+                problems.append(
+                    Problem("invalid_sources", f"Invalid sources '{val_str}' (must match ^\\[.*\\]$)", idx)
+                )
+            else:
+                fm[norm_key] = _parse_inline_list(val_str)
+            continue
+
         # Unquote single or double quoted values
         if val_str.startswith('"') and val_str.endswith('"') and len(val_str) >= 2:
             val_str = _unescape_double_quoted(val_str[1:-1])
         elif val_str.startswith("'") and val_str.endswith("'") and len(val_str) >= 2:
             val_str = val_str[1:-1].replace("''", "'")
 
-        # Inline list support strictly for sources
-        if norm_key == "sources" and val_str.startswith("[") and val_str.endswith("]"):
-            fm[norm_key] = _parse_inline_list(val_str)
-        else:
-            fm[norm_key] = val_str
+        fm[norm_key] = val_str
 
     if not closed:
         problems.append(
@@ -260,23 +329,18 @@ def _render_value(key: str, val: Any) -> str:
             rendered_items = []
             for item in val:
                 item_str = str(item)
-                # Quote items if they contain special characters or spaces
-                if any(c in item_str for c in (",", " ", '"', "'", ":")):
-                    escaped = item_str.replace("\\", "\\\\").replace('"', '\\"')
-                    rendered_items.append(f'"{escaped}"')
-                else:
-                    rendered_items.append(item_str)
+                escaped = item_str.replace("\\", "\\\\").replace('"', '\\"')
+                rendered_items.append(f'"{escaped}"')
             return f"[{', '.join(rendered_items)}]"
-        s = str(val).strip()
-        if s.startswith("[") and s.endswith("]"):
-            return s
-        return f"[{s}]" if s else "[]"
+        return str(val)
 
     if key == "deprecated":
         if isinstance(val, bool):
             return "true" if val else "false"
-        s = str(val).strip().lower()
-        return "true" if s in ("true", "1", "yes") else "false"
+        s = str(val).strip()
+        if s.lower() in ("true", "false"):
+            return s.lower()
+        return str(val)
 
     if key in ("id", "type", "status", "created", "stale_after", "owner", "verified"):
         return str(val).strip()
@@ -401,6 +465,60 @@ def check_semantics(
                 f"Invalid verified '{verified}' (must be one of: {', '.join(CANONICAL_VERIFIED)})",
             )
         )
+
+    # Deprecated boolean
+    if "deprecated" in fm:
+        dep = fm.get("deprecated")
+        if isinstance(dep, bool):
+            pass
+        elif isinstance(dep, str) and dep.strip() in ("true", "false"):
+            pass
+        else:
+            problems.append(
+                Problem(
+                    "invalid_deprecated",
+                    f"Invalid deprecated '{dep}' (must be true or false)",
+                )
+            )
+
+    # Sources array
+    if "sources" in fm:
+        sources = fm.get("sources")
+        if isinstance(sources, str):
+            problems.append(
+                Problem(
+                    "invalid_sources",
+                    f"Invalid sources '{sources}' (must be an inline array with double-quoted items: [\"...\"])",
+                )
+            )
+        elif isinstance(sources, (list, tuple)):
+            raw_s = getattr(fm, "raw_sources", None)
+            if raw_s is not None:
+                valid, _ = _parse_sources_items(raw_s)
+                if not valid:
+                    problems.append(
+                        Problem(
+                            "invalid_sources",
+                            f"Invalid sources '{raw_s}' (every item must be double-quoted per schema: [\"...\"])",
+                        )
+                    )
+            else:
+                for item in sources:
+                    if not isinstance(item, str):
+                        problems.append(
+                            Problem(
+                                "invalid_sources",
+                                f"Invalid sources item '{item}' (must be a string)",
+                            )
+                        )
+                        break
+        else:
+            problems.append(
+                Problem(
+                    "invalid_sources",
+                    f"Invalid sources '{sources}' (must be an inline array [...])",
+                )
+            )
 
     # 4. ID kebab-case
     fid = fm.get("id")

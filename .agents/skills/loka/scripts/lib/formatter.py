@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
-from .frontmatter import Frontmatter, Problem, parse, render
+from .frontmatter import Frontmatter, Problem, parse, render, check_semantics
 
 FATAL_PARSE_CODES: Set[str] = {
     "missing_opening_delimiter",
@@ -54,7 +54,11 @@ def format_text(text: str) -> str:
         return ""
 
     fm, body, problems = parse(text)
-    if any(p.code in FATAL_PARSE_CODES for p in problems):
+    if any(p.code in FATAL_PARSE_CODES or p.code in ("invalid_deprecated", "invalid_sources") for p in problems):
+        return text
+
+    sem_problems = check_semantics(fm)
+    if any(p.code in ("invalid_deprecated", "invalid_sources") for p in sem_problems):
         return text
 
     # Canonical frontmatter block
@@ -201,9 +205,14 @@ def format_file(
         return False, [Problem("read_error", f"Cannot read {path}: {e}")], []
 
     fm, body, parse_problems = parse(old_text)
-    fatal = [p for p in parse_problems if p.code in FATAL_PARSE_CODES]
-    if fatal:
-        return False, fatal, []
+    blocking = [p for p in parse_problems if p.code in FATAL_PARSE_CODES or p.code in ("invalid_deprecated", "invalid_sources")]
+    if blocking:
+        return False, blocking, []
+
+    sem_problems = check_semantics(fm)
+    sem_blocking = [p for p in sem_problems if p.code in ("invalid_deprecated", "invalid_sources")]
+    if sem_blocking:
+        return False, sem_blocking, []
 
     new_text = format_text(old_text)
     if new_text == old_text:
