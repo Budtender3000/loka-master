@@ -34,7 +34,7 @@
 - **PROHIBIT** unilateral reorganization, structural modifications, or autonomous schema mutations.
 - **VERIFY** existing notes via search before proposing or creating new files to prevent duplicate structures or identifier collisions.
 - **REPORT** orphaned notes, malformed frontmatter, and broken references directly to the custodian instead of applying silent fixes.
-- **PERMIT** `loka format` to apply mechanical fixes (key order, quoting, blank lines in frontmatter, trailing whitespace, final newline) exclusively upon explicit custodian invocation, emitting a per-file modification report; `loka audit` and `loka index` are strictly read-only and never modify files.
+- **PERMIT** `loka format` to apply mechanical fixes (key order, quoting, blank lines in frontmatter, trailing whitespace, final newline) exclusively upon explicit custodian invocation, emitting a per-file modification report; `loka index` updates `index.md` strictly between `AUTO-INDEX` markers, while `loka-review-master` is strictly read-only and never modifies files.
 
 ### 3.2 Risk Tiers & Safety Boundaries
 - **CLASSIFY** every task into one of three deterministic risk tiers: Read-Only Actions, Reversible Actions, or Destructive Actions.

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Self-Contained Framework Substrate:** Fully encapsulated LOKA governance, skills, and vault under `.agents/`, eliminating root-level file conflicts for seamless embedding into host repositories.
 - **Skill Suite Standardization:** Aligned all core skill frontmatters with standard metadata schema (`type: skill`, `version`, `owner: USER`), syncing `loka` to v0.2.1, `loka-git-manager` to v0.2.0, and `loka-log` to v0.2.7.
 - **Documentation Parity:** Updated `README.md` and `.agents/README.md` to reflect unified architecture, correct subagent naming (`loka-writer-worker`), and current skill version matrix.
+- **Validator Alignment:** Replaced stale `loka audit` references with `loka-review-master` semantic review in `schema.md`, aligned `SKILL.md` CLI entry point with `loka.py --help`, and clarified `loka index` catalog rewrite semantics in `AGENTS.md`.
 
 ### Fixed
 - **Retrospective Prompt Target:** Updated `retrospective.prompt.md` target path to `.agents/loka-brain/retrospectives.md` and sanitized legacy directory initialization.

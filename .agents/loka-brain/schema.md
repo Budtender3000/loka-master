@@ -135,7 +135,7 @@ Every Knowledge Artifact must conform to one of the following two exact H2 headi
 Every requirement in this specification is a normative invariant evaluated as a binary `PASS` or `FAIL`. Non-blocking warnings and severity levels are prohibited.
 
 - **`AUTO-FIX`:** Mechanically remediated exclusively via explicit invocation of `loka format`.
-- **`REPORT`:** Validated by `loka audit`; reports binary `FAIL` upon violation and never modifies files.
+- **`REPORT`:** Validated by `loka-review-master` semantic review; reports binary `FAIL` upon violation and never modifies files.
 
 | Rule / Invariant | Fix Class | Operational Remediation |
 |---|---|---|
@@ -145,22 +145,22 @@ Every requirement in this specification is a normative invariant evaluated as a 
 | Closing delimiter compactness | `AUTO-FIX` | `loka format` places closing `---` directly after last key |
 | Trailing whitespace | `AUTO-FIX` | `loka format` strips trailing spaces across document |
 | Final newline | `AUTO-FIX` | `loka format` ensures exactly one terminating newline |
-| Opening delimiter presence | `REPORT` | `loka audit` reports missing opening `---` on line 1 |
-| Mandatory field presence (`id`, `name`, `type`, `description`) | `REPORT` | `loka audit` reports missing or empty mandatory fields |
-| Canonical domain & type alignment | `REPORT` | `loka audit` reports mismatch between `type` and parent domain folder |
-| Status & deprecation enum values | `REPORT` | `loka audit` reports invalid `status` or non-boolean `deprecated` |
-| ISO-8601 date format (`created`, `stale_after`) | `REPORT` | `loka audit` reports invalid date format (`YYYY-MM-DD`) |
-| Trust signal values (`verified`) | `REPORT` | `loka audit` reports unapproved `verified` enum values |
-| Sources array syntax | `REPORT` | `loka audit` reports invalid array syntax or non-list values |
-| Schema purity | `REPORT` | `loka audit` reports undeclared, unknown, or legacy keys |
-| Identifier equality (`id == filename_stem`) | `REPORT` | `loka audit` reports mismatch between `id` and filename stem |
-| File placement | `REPORT` | `loka audit` reports artifacts outside canonical domain roots or nested subdirectories |
-| Document title (single H1 matching `name` verbatim) | `REPORT` | `loka audit` reports missing, duplicated, or mismatched H1 |
-| Heading depth | `REPORT` | `loka audit` reports headings at level 4 (`####`) or deeper |
-| Section sequence | `REPORT` | `loka audit` reports non-conforming H2 section sequences |
-| Code fence tagging | `REPORT` | `loka audit` reports untagged code blocks |
-| Obsidian tag prohibition | `REPORT` | `loka audit` reports `#tag` in frontmatter or Markdown body prose |
-| Table wikilink prohibition | `REPORT` | `loka audit` reports wikilinks within Markdown table cells |
-| Internal wikilink integrity | `REPORT` | `loka audit` reports unresolvable target artifacts |
-| Host path de-identification | `REPORT` | `loka audit` reports hardcoded host paths (`/home/`, `/mnt/`, `/tmp/`, `/root/`) |
-| Runtime isolation | `REPORT` | `loka audit` reports foreign runtime identifiers (`buds_*`, `BUDTENDER_KERNEL`) |
+| Opening delimiter presence | `REPORT` | `loka-review-master` reports missing opening `---` on line 1 |
+| Mandatory field presence (`id`, `name`, `type`, `description`) | `REPORT` | `loka-review-master` reports missing or empty mandatory fields |
+| Canonical domain & type alignment | `REPORT` | `loka-review-master` reports mismatch between `type` and parent domain folder |
+| Status & deprecation enum values | `REPORT` | `loka-review-master` reports invalid `status` or non-boolean `deprecated` |
+| ISO-8601 date format (`created`, `stale_after`) | `REPORT` | `loka-review-master` reports invalid date format (`YYYY-MM-DD`) |
+| Trust signal values (`verified`) | `REPORT` | `loka-review-master` reports unapproved `verified` enum values |
+| Sources array syntax | `REPORT` | `loka-review-master` reports invalid array syntax or non-list values |
+| Schema purity | `REPORT` | `loka-review-master` reports undeclared, unknown, or legacy keys |
+| Identifier equality (`id == filename_stem`) | `REPORT` | `loka-review-master` reports mismatch between `id` and filename stem |
+| File placement | `REPORT` | `loka-review-master` reports artifacts outside canonical domain roots or nested subdirectories |
+| Document title (single H1 matching `name` verbatim) | `REPORT` | `loka-review-master` reports missing, duplicated, or mismatched H1 |
+| Heading depth | `REPORT` | `loka-review-master` reports headings at level 4 (`####`) or deeper |
+| Section sequence | `REPORT` | `loka-review-master` reports non-conforming H2 section sequences |
+| Code fence tagging | `REPORT` | `loka-review-master` reports untagged code blocks |
+| Obsidian tag prohibition | `REPORT` | `loka-review-master` reports `#tag` in frontmatter or Markdown body prose |
+| Table wikilink prohibition | `REPORT` | `loka-review-master` reports wikilinks within Markdown table cells |
+| Internal wikilink integrity | `REPORT` | `loka-review-master` reports unresolvable target artifacts |
+| Host path de-identification | `REPORT` | `loka-review-master` reports hardcoded host paths (`/home/`, `/mnt/`, `/tmp/`, `/root/`) |
+| Runtime isolation | `REPORT` | `loka-review-master` reports foreign runtime identifiers (`buds_*`, `BUDTENDER_KERNEL`) |

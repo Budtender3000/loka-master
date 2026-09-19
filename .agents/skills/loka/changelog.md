@@ -5,6 +5,7 @@
 - **Complete Lifecycle & Minting Engine:** Implemented single-step `promote` (`draft` → `test` → `active`), `deprecate`, `undeprecate`, and transactional `mint` (`NEW_MINT`, `MERGE`) with realpath containment, SHA-256 draft/base hash validation, and automatic rollback on failure.
 - **Auditor Bloat Purged & Review Master Modernization:** Decoupled `review-master.md` and `writer-worker.md` from external audit scripts in favor of an intelligent 5-dimension semantic peer reviewer, delegating mechanical formatting to `loka format` and catalog regeneration to `loka index`.
 - **Schema v0.3.0 Alignment:** Aligned all agents and tooling with schema v0.3.0: compact closing delimiters directly after the final key, single key per line key density, removal of Section 3.4 tokens, double-quoting conditions, and binary PASS/FAIL quality gates.
+- **Validator Alignment:** Purged stale `loka audit` references across schema and skill definitions, explicitly attributing the `REPORT` class to `loka-review-master` semantic review, and synchronized CLI entry point listing in `SKILL.md` with `loka.py --help`.
 - **50 Comprehensive Unit & Integration Tests:** Complete test coverage across frontmatter parsing, mechanical formatting idempotency, deterministic indexing, lifecycle transitions, transactional minting, and CLI execution in `scripts/tests/`.
 
 ### v0.2.4

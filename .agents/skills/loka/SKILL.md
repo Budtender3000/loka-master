@@ -56,7 +56,7 @@ Master skill governing the Knowledge Artifact lifecycle in `./.agents/loka-brain
 - `agents/mint-master.md` — Mint pipeline orchestrator prompt (read-only master).
 - `agents/review-master.md` — Review and promotion pipeline orchestrator prompt (read-only master).
 - `agents/writer-worker.md` — Execution worker prompt for vault mutations post Human Gate.
-- `scripts/loka.py` — Unified CLI entry point (`format`, `index`, `audit`, `mint`, `promote`).
+- `scripts/loka.py` — Unified CLI entry point (`format`, `index`, `promote`, `deprecate`, `undeprecate`, `mint`).
 - `scripts/lib/frontmatter.py` — Shared frontmatter parser and domain utilities.
 - `scripts/lib/formatter.py` — Mechanical formatting and quote normalization engine.
 - `scripts/lib/indexer.py` — Vault catalog generator with progressive disclosure descriptions.
