@@ -195,6 +195,73 @@ class TestLifecycle(unittest.TestCase):
                 promote_artifact(tmp.name, brain_dir=self.vault)
             self.assertIn("outside brain vault", str(ctx.exception).lower())
 
+    def test_lifecycle_rejects_invalid_date_and_verified(self):
+        """Confirm promote, deprecate, and mint reject artifacts with invalid dates or verified."""
+        # 1. promote rejects artifact with invalid calendar date (2026-02-30)
+        p_bad_date = self._create_artifact(
+            "standards",
+            "bad-date-std",
+            [
+                "---",
+                "id: bad-date-std",
+                "name: Bad Date Standard",
+                "type: standard",
+                "description: Testing invalid calendar date",
+                "created: 2026-02-30",
+                "---",
+                "# Bad Date Standard",
+            ],
+        )
+        with self.assertRaises(LifecycleError) as ctx:
+            promote_artifact(p_bad_date, brain_dir=self.vault)
+        self.assertIn("semantic validation failed", str(ctx.exception).lower())
+        self.assertIn("invalid created date", str(ctx.exception).lower())
+
+        # 2. deprecate rejects artifact with invalid verified enum
+        p_bad_ver = self._create_artifact(
+            "tools",
+            "bad-ver-tool",
+            [
+                "---",
+                "id: bad-ver-tool",
+                "name: Bad Ver Tool",
+                "type: tool",
+                "description: Testing invalid verified enum",
+                "verified: manual",
+                "---",
+                "# Bad Ver Tool",
+            ],
+        )
+        with self.assertRaises(LifecycleError) as ctx:
+            deprecate_artifact(p_bad_ver, brain_dir=self.vault)
+        self.assertIn("semantic validation failed", str(ctx.exception).lower())
+        self.assertIn("invalid verified", str(ctx.exception).lower())
+
+        # 3. mint rejects draft with invalid stale_after date
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as draft:
+            draft.write(
+                "---\n"
+                "id: mint-bad-date\n"
+                "name: Mint Bad Date\n"
+                "type: standard\n"
+                "description: Testing mint rejection on invalid stale date\n"
+                "stale_after: 2026-02-30\n"
+                "---\n\n"
+                "# Mint Bad Date\n"
+            )
+            draft_path = draft.name
+
+        target_path = self.vault / "standards" / "mint-bad-date.md"
+        with self.assertRaises(LifecycleError) as ctx:
+            mint_artifact(
+                action="NEW_MINT",
+                target_path=target_path,
+                draft_file=draft_path,
+                brain_dir=self.vault,
+            )
+        self.assertIn("semantic validation failed", str(ctx.exception).lower())
+        self.assertIn("invalid stale_after date", str(ctx.exception).lower())
+
     # =========================================================================
     # DEPRECATE / UNDEPRECATE TESTS
     # =========================================================================

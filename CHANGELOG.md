@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Frontmatter Semantic Validation:** Added calendar date validation (`created`, `stale_after` matching `YYYY-MM-DD` and verified with `datetime.date.fromisoformat`) and canonical trust signal enum validation (`verified` in `human|attested|automated`) in `check_semantics`, rejecting invalid values across `loka promote`, `deprecate`, and `mint`.
 - **Root Bootstrap Gateway:** Added a minimal, deterministic root `AGENTS.md` serving strictly as an external agent interoperability bootstrap pointing to `.agents/AGENTS.md` with explicit anti-drift constraints.
 - **Skill-Centric Changelogs:** Added dedicated, isolated `changelog.md` ledgers for each core skill (`.agents/skills/loka/`, `.agents/skills/loka-git-manager/`, `.agents/skills/loka-log/`).
 - **Session Memory Tracking:** Added `.agents/memories/sessions/` to tracked architecture documentation for factual execution audit trails.

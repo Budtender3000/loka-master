@@ -1,5 +1,6 @@
 """Shared Frontmatter Parser, Canonical Renderer, and Domain Utilities for LOKA."""
 
+import datetime
 import re
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
@@ -17,6 +18,12 @@ CANONICAL_STATUSES: Tuple[str, ...] = (
     "draft",
     "test",
     "active",
+)
+
+CANONICAL_VERIFIED: Tuple[str, ...] = (
+    "human",
+    "attested",
+    "automated",
 )
 
 _DOMAIN_TO_TYPE: Dict[str, str] = {
@@ -362,6 +369,36 @@ def check_semantics(
             Problem(
                 "invalid_status",
                 f"Invalid status '{status}' (must be one of: {', '.join(CANONICAL_STATUSES)})",
+            )
+        )
+
+    # Date fields (created, stale_after)
+    for date_field in ("created", "stale_after"):
+        d_val = fm.get(date_field)
+        if d_val:
+            d_str = str(d_val).strip()
+            is_valid = False
+            if re.match(r"^\d{4}-\d{2}-\d{2}$", d_str):
+                try:
+                    datetime.date.fromisoformat(d_str)
+                    is_valid = True
+                except ValueError:
+                    is_valid = False
+            if not is_valid:
+                problems.append(
+                    Problem(
+                        "invalid_date",
+                        f"Invalid {date_field} date '{d_str}' (must be valid YYYY-MM-DD calendar date)",
+                    )
+                )
+
+    # Verified enum
+    verified = fm.get("verified")
+    if verified and verified not in CANONICAL_VERIFIED:
+        problems.append(
+            Problem(
+                "invalid_verified",
+                f"Invalid verified '{verified}' (must be one of: {', '.join(CANONICAL_VERIFIED)})",
             )
         )
 

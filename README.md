@@ -2,7 +2,7 @@
 
 [![Specification](https://img.shields.io/badge/schema-v0.3.0-blue.svg)](./.agents/loka-brain/schema.md)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-51%20passed-brightgreen.svg)](./.agents/skills/loka/scripts/tests/)
+[![Tests](https://img.shields.io/badge/tests-54%20passed-brightgreen.svg)](./.agents/skills/loka/scripts/tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Architecture: Decoupled Vault](https://img.shields.io/badge/architecture-decoupled%20vault-orange.svg)](./.agents/AGENTS.md)
 
@@ -476,7 +476,7 @@ python3 -m unittest discover -s ./.agents/skills/loka/scripts/tests -v
 
 ### Test Suite Structure
 
-The test suite consists of 51 unit and integration tests located in [`./.agents/skills/loka/scripts/tests/`](./.agents/skills/loka/scripts/tests/):
+The test suite consists of 54 unit and integration tests located in [`./.agents/skills/loka/scripts/tests/`](./.agents/skills/loka/scripts/tests/):
 
 - **`test_frontmatter.py`:** Tests tolerant frontmatter parsing, closing delimiter arithmetic, canonical YAML serialization, double-quoting triggers, and semantic validation.
 - **`test_formatter.py`:** Tests mechanical auto-fixing, key reordering, blank line removal, trailing whitespace stripping, and code fence protection.
@@ -523,7 +523,7 @@ The test suite consists of 51 unit and integration tests located in [`./.agents/
 - [x] Shared standard-library Python parser and mechanical auto-formatter.
 - [x] Deterministic progressive disclosure indexer (`loka index`).
 - [x] Transactional minting engine with SHA-256 verification and automatic rollback.
-- [x] 51-test unit and integration test suite.
+- [x] 54-test unit and integration test suite.
 - [ ] Automated freshness warnings for artifacts exceeding their `stale_after` date.
 - [ ] Network graph visualization (Mermaid and Graphviz export) for cross-domain wikilinks.
 - [ ] Multi-vault federation and external module synchronization.

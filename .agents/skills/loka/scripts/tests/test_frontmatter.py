@@ -267,6 +267,92 @@ class TestSemanticChecks(unittest.TestCase):
         codes = [p.code for p in problems]
         self.assertIn("type_domain_mismatch", codes)
 
+    def test_valid_and_invalid_date_fields(self):
+        # Valid date fields
+        fm_valid = Frontmatter(
+            {
+                "id": "valid-dates",
+                "name": "Valid Dates",
+                "type": "standard",
+                "description": "Desc",
+                "created": "2026-09-19",
+                "stale_after": "2027-09-19",
+            }
+        )
+        problems = check_semantics(fm_valid)
+        codes = [p.code for p in problems]
+        self.assertNotIn("invalid_date", codes)
+
+        # Invalid format
+        fm_bad_fmt = Frontmatter(
+            {
+                "id": "bad-date-fmt",
+                "name": "Bad Date Format",
+                "type": "standard",
+                "description": "Desc",
+                "created": "2026/09/19",
+            }
+        )
+        problems = check_semantics(fm_bad_fmt)
+        codes = [p.code for p in problems]
+        self.assertIn("invalid_date", codes)
+
+        # Invalid calendar date (2026-02-30)
+        fm_impossible_date = Frontmatter(
+            {
+                "id": "impossible-date",
+                "name": "Impossible Date",
+                "type": "standard",
+                "description": "Desc",
+                "created": "2026-02-30",
+            }
+        )
+        problems = check_semantics(fm_impossible_date)
+        codes = [p.code for p in problems]
+        self.assertIn("invalid_date", codes)
+
+        # Invalid stale_after calendar date
+        fm_bad_stale = Frontmatter(
+            {
+                "id": "bad-stale",
+                "name": "Bad Stale",
+                "type": "standard",
+                "description": "Desc",
+                "stale_after": "2026-13-45",
+            }
+        )
+        problems = check_semantics(fm_bad_stale)
+        codes = [p.code for p in problems]
+        self.assertIn("invalid_date", codes)
+
+    def test_valid_and_invalid_verified(self):
+        for val in ("human", "attested", "automated"):
+            fm = Frontmatter(
+                {
+                    "id": "valid-verified",
+                    "name": "Valid Verified",
+                    "type": "standard",
+                    "description": "Desc",
+                    "verified": val,
+                }
+            )
+            problems = check_semantics(fm)
+            codes = [p.code for p in problems]
+            self.assertNotIn("invalid_verified", codes)
+
+        fm_bad = Frontmatter(
+            {
+                "id": "bad-verified",
+                "name": "Bad Verified",
+                "type": "standard",
+                "description": "Desc",
+                "verified": "manual",
+            }
+        )
+        problems = check_semantics(fm_bad)
+        codes = [p.code for p in problems]
+        self.assertIn("invalid_verified", codes)
+
 
 class TestRoundTripEdgeCases(unittest.TestCase):
     """Verify format -> parse round-trips losslessly for all edge cases."""

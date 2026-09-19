@@ -7,7 +7,8 @@
 - **Schema v0.3.0 Alignment:** Aligned all agents and tooling with schema v0.3.0: compact closing delimiters directly after the final key, single key per line key density, removal of Section 3.4 tokens, double-quoting conditions, and binary PASS/FAIL quality gates.
 - **Validator Alignment:** Purged stale `loka audit` references across schema and skill definitions, explicitly attributing the `REPORT` class to `loka-review-master` semantic review, and synchronized CLI entry point listing in `SKILL.md` with `loka.py --help`.
 - **Formatter False Positive Fix:** Resolved false-positive `quotes_required` detection in `formatter.py` for valid inline arrays (`sources: ["..."]`) by deriving quote change categories directly from frontmatter value diffs.
-- **51 Comprehensive Unit & Integration Tests:** Complete test coverage across frontmatter parsing, mechanical formatting idempotency, deterministic indexing, lifecycle transitions, transactional minting, and CLI execution in `scripts/tests/`.
+- **Date & Verified Semantic Validation:** Extended `check_semantics` in `lib/frontmatter.py` to validate ISO-8601 calendar dates (`created`, `stale_after`) using `datetime.date.fromisoformat` and canonical trust signals (`verified: human|attested|automated`), rejecting violations during `promote`, `deprecate`, and `mint` lifecycle operations.
+- **54 Comprehensive Unit & Integration Tests:** Complete test coverage across frontmatter parsing, mechanical formatting idempotency, deterministic indexing, lifecycle transitions, transactional minting, and CLI execution in `scripts/tests/`.
 
 ### v0.2.4
 - **Strict Containment & Realpath Safety:** Enforced canonical `readlink -m` containment against `BRAIN_DIR` and prohibited symlink targets in `scripts/apply_mint.sh`.
