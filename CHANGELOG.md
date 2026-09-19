@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Session Memory Tracking:** Added `.agents/memories/sessions/` to tracked architecture documentation for factual execution audit trails.
 
 ### Changed
+- **README Clarity & Flow Refinements:** Refined repository README.md with an example prompt line, clarified orchestrator hash calculation and review master roles, standardized sample paths, and added vault reset instructions.
 - **Operational Substrate Documentation:** Synchronized `.agents/README.md` with schema v0.3.0 and Python CLI architecture (`scripts/loka.py`), updated sequence workflows, aligned CLI commands, and removed host-specific ignore rules in `.gitignore`.
 - **Schema Enforcement Attribution:** Re-attributed `REPORT` class rows in `schema.md` Section 5 to their concrete validators: mapping `status` enum, non-boolean `deprecated`, ISO-8601 dates, `verified` trust signal, and `sources` array syntax enforcement to `check_semantics` (via `loka promote`/`deprecate`/`mint`).
 - **Schema Specification v0.3.0:** Upgraded `.agents/loka-brain/schema.md` to specification version 0.3.0. Replaced closing delimiter line formula with compact delimiter invariant (one key per line, no blank lines), codified double-quoting triggers matching `render()`, aligned `sources` array syntax with double quotes, pruned Section 3.4 mandatory section tokens, delegated secret scanning to `loka-git-manager`, and introduced the binary `AUTO-FIX` vs `REPORT` fix class classification.

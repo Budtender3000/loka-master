@@ -6,11 +6,13 @@ LOKA provides a machine-actionable Knowledge Artifact vault and deterministic to
 
 ## How to Use LOKA
 
-LOKA is designed to be operated through an external AI coding assistant following the governance contracts defined in [`.agents/AGENTS.md`](./.agents/AGENTS.md):
+LOKA is designed to be operated through an external AI coding assistant following the governance contracts defined in [`.agents/AGENTS.md`](./.agents/AGENTS.md).
+
+Example prompt: `Mint this pattern as a standard: <text>`
 
 1. **Bootstrap & Scope Discovery:** The agent discovers the repository entry point at [`./AGENTS.md`](./AGENTS.md), inspects [`.agents/AGENTS.md`](./.agents/AGENTS.md) as the Single Source of Truth (SSOT), and examines the vault catalog at [`.agents/loka-brain/index.md`](./.agents/loka-brain/index.md).
-2. **Targeted Retrieval:** The agent identifies required operational knowledge and loads strictly 1–3 relevant artifacts via relative paths (e.g., `./standards/review.md`), minimizing context overhead.
-3. **Creation & Review Pipeline:** To propose or update knowledge, the agent delegates to a read-only master prompt (`mint-master` or `review-master` from [`.agents/skills/loka/SKILL.md`](./.agents/skills/loka/SKILL.md)), which produces candidate content and computes a verbatim SHA-256 `DRAFT_HASH`.
+2. **Targeted Retrieval:** The agent identifies required operational knowledge and loads strictly 1–3 relevant artifacts via relative paths (e.g., `./standards/code-review.md`), minimizing context overhead.
+3. **Creation & Review Pipeline:** To propose new knowledge, the agent delegates to `mint-master`, which drafts candidate content; the main agent/orchestrator then computes a verbatim SHA-256 `DRAFT_HASH` via `sha256sum` (from [`.agents/skills/loka/SKILL.md`](./.agents/skills/loka/SKILL.md)). For auditing and lifecycle advancement, `review-master` evaluates existing artifacts across 5 semantic dimensions.
 4. **Human Gate & Execution:** The candidate and `DRAFT_HASH` are presented to the human custodian. Upon explicit approval, a privileged write worker (`writer-worker`) executes `loka mint` (or `promote`/`deprecate`) to write the file atomically, format frontmatter, and update the catalog with rollback on failure.
 
 The entire governance framework, skills, and knowledge vault reside within [`./.agents/`](./.agents/README.md), allowing the framework to be placed directly inside any host repository alongside the root bootstrap [`./AGENTS.md`](./AGENTS.md).
@@ -79,15 +81,17 @@ Index updated: .agents/loka-brain/index.md
 
 ### 4. Validation Rejection in Strict Mode
 
-When an artifact violates frontmatter syntax or semantic rules (such as `deprecated: nope`), `loka index` skips the defective file with a warning on `stderr`. Under `--strict`, it terminates with exit code `1`:
+To test strict rejection, copy `.agents/loka-brain/standards/code-review.md` to `.agents/loka-brain/standards/invalid-sample.md` and set `deprecated: nope`. When an artifact violates frontmatter syntax or semantic rules, `loka index` skips the defective file with a warning on `stderr`. Under `--strict`, it terminates with exit code `1`:
 
 ```console
 $ python3 .agents/skills/loka/scripts/loka.py index --strict
 WARNING: Skipping .agents/loka-brain/standards/invalid-sample.md in index: Invalid deprecated 'nope' (must be true or false)
 Index updated: .agents/loka-brain/index.md
-$ echo $status
+$ echo $?
 1
 ```
+
+To reset the vault after testing, delete the example artifacts and run `git checkout -- .agents/loka-brain/index.md`.
 
 ## CLI Reference
 
