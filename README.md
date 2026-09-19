@@ -6,16 +6,26 @@ LOKA provides a machine-actionable Knowledge Artifact vault and deterministic to
 
 ## How to Use LOKA
 
-LOKA is designed to be operated through an external AI coding assistant following the governance contracts defined in [`.agents/AGENTS.md`](./.agents/AGENTS.md).
+The primary operational entry point for managing knowledge is the `loka` skill ([`.agents/skills/loka/SKILL.md`](.agents/skills/loka/SKILL.md)), a dual-master orchestrator governing artifact minting, review, lifecycle promotion, and deprecation. An agent discovers the operating contract via root [`./AGENTS.md`](./AGENTS.md), where [`.agents/AGENTS.md`](.agents/AGENTS.md) §8 mandates delegating all artifact operations exclusively to `loka`. Skill activation is host-runtime dependent, relying on the agent platform discovering skills under `.agents/skills/` and matching user intent against the `description` in `SKILL.md`.
 
 Example prompt: `Mint this pattern as a standard: <text>`
 
 1. **Bootstrap & Scope Discovery:** The agent discovers the repository entry point at [`./AGENTS.md`](./AGENTS.md), inspects [`.agents/AGENTS.md`](./.agents/AGENTS.md) as the Single Source of Truth (SSOT), and examines the vault catalog at [`.agents/loka-brain/index.md`](./.agents/loka-brain/index.md).
 2. **Targeted Retrieval:** The agent identifies required operational knowledge and loads strictly 1–3 relevant artifacts via relative paths (e.g., `./standards/code-review.md`), minimizing context overhead.
-3. **Creation & Review Pipeline:** To propose new knowledge, the agent delegates to `mint-master`, which drafts candidate content; the main agent/orchestrator then computes a verbatim SHA-256 `DRAFT_HASH` via `sha256sum` (from [`.agents/skills/loka/SKILL.md`](./.agents/skills/loka/SKILL.md)). For auditing and lifecycle advancement, `review-master` evaluates existing artifacts across 5 semantic dimensions.
-4. **Human Gate & Execution:** The candidate and `DRAFT_HASH` are presented to the human custodian. Upon explicit approval, a privileged write worker (`writer-worker`) executes `loka mint` (or `promote`/`deprecate`) to write the file atomically, format frontmatter, and update the catalog with rollback on failure.
+3. **Creation & Review Pipeline:** To propose new knowledge, the agent delegates to the `loka` skill's `mint-master` subagent, which drafts candidate content; the main agent/orchestrator then computes a verbatim SHA-256 `DRAFT_HASH` via `sha256sum`. For auditing and lifecycle advancement, the `loka` skill's `review-master` evaluates existing artifacts across 5 semantic dimensions.
+4. **Human Gate & Execution:** The candidate and `DRAFT_HASH` are presented to the human custodian. Upon explicit approval, the `loka` skill dispatches a privileged write worker (`writer-worker`) to execute `loka mint` (or `promote`/`deprecate`), writing the file atomically, formatting frontmatter, and updating the catalog with rollback on failure.
 
 The entire governance framework, skills, and knowledge vault reside within [`./.agents/`](./.agents/README.md), allowing the framework to be placed directly inside any host repository alongside the root bootstrap [`./AGENTS.md`](./AGENTS.md).
+
+## Skills
+
+LOKA bundles three specialized skills under `.agents/skills/`:
+
+| Skill | Version | Purpose | Path |
+|---|---|---|---|
+| `loka` | 0.3.0 | Master orchestrator governing artifact minting, review, lifecycle promotion, and deprecation. | [`.agents/skills/loka/SKILL.md`](.agents/skills/loka/SKILL.md) |
+| `loka-git-manager` | 0.2.0 | Local Git operations manager for pre-flight checks, atomic Conventional Commits, and secret scans. | [`.agents/skills/loka-git-manager/SKILL.md`](.agents/skills/loka-git-manager/SKILL.md) |
+| `loka-log` | 0.2.7 | Workspace archivist managing session evidence logging, log querying, and handover capture. | [`.agents/skills/loka-log/SKILL.md`](.agents/skills/loka-log/SKILL.md) |
 
 ## Quickstart
 
