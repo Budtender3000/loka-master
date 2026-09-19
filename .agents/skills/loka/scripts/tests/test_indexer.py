@@ -124,6 +124,134 @@ class TestIndexer(unittest.TestCase):
         stderr_output = captured_stderr.getvalue()
         self.assertIn("missing required fields: type, description", stderr_output)
 
+    def test_skips_semantically_invalid_artifacts_with_warning(self):
+        import io
+
+        (self.vault / "standards").mkdir(exist_ok=True)
+        # Valid neighbor 1
+        valid1 = self.vault / "standards" / "std-alpha.md"
+        valid1.write_text(
+            "---\n"
+            "id: std-alpha\n"
+            "name: Alpha Standard\n"
+            "type: standard\n"
+            "description: Valid alpha standard\n"
+            "---\n",
+            encoding="utf-8",
+        )
+
+        # 1. deprecated: nope
+        bad_dep = self.vault / "standards" / "bad-dep.md"
+        bad_dep.write_text(
+            "---\n"
+            "id: bad-dep\n"
+            "name: Bad Dep\n"
+            "type: standard\n"
+            "description: Has invalid deprecated\n"
+            "deprecated: nope\n"
+            "---\n",
+            encoding="utf-8",
+        )
+
+        # 2. sources: nope
+        bad_sources_raw = self.vault / "standards" / "bad-sources-raw.md"
+        bad_sources_raw.write_text(
+            "---\n"
+            "id: bad-sources-raw\n"
+            "name: Bad Sources Raw\n"
+            "type: standard\n"
+            "description: Has invalid sources non-array\n"
+            "sources: nope\n"
+            "---\n",
+            encoding="utf-8",
+        )
+
+        # 3. sources: [unquoted]
+        bad_sources_unquoted = self.vault / "standards" / "bad-sources-unquoted.md"
+        bad_sources_unquoted.write_text(
+            "---\n"
+            "id: bad-sources-unquoted\n"
+            "name: Bad Sources Unquoted\n"
+            "type: standard\n"
+            "description: Has unquoted sources items\n"
+            "sources: [unquoted]\n"
+            "---\n",
+            encoding="utf-8",
+        )
+
+        # 4. id != filename stem
+        bad_stem = self.vault / "standards" / "bad-stem.md"
+        bad_stem.write_text(
+            "---\n"
+            "id: mismatched-stem\n"
+            "name: Bad Stem\n"
+            "type: standard\n"
+            "description: ID does not match stem\n"
+            "---\n",
+            encoding="utf-8",
+        )
+
+        # 5. invalid status
+        bad_status = self.vault / "standards" / "bad-status.md"
+        bad_status.write_text(
+            "---\n"
+            "id: bad-status\n"
+            "name: Bad Status\n"
+            "type: standard\n"
+            "status: bogus\n"
+            "description: Has invalid status\n"
+            "---\n",
+            encoding="utf-8",
+        )
+
+        # Valid neighbor 2
+        valid2 = self.vault / "standards" / "std-omega.md"
+        valid2.write_text(
+            "---\n"
+            "id: std-omega\n"
+            "name: Omega Standard\n"
+            "type: standard\n"
+            "description: Valid omega standard\n"
+            "---\n",
+            encoding="utf-8",
+        )
+
+        captured_stderr = io.StringIO()
+        old_stderr = sys.stderr
+        try:
+            sys.stderr = captured_stderr
+            exit_code, warnings = generate_index(self.vault, strict=False)
+        finally:
+            sys.stderr = old_stderr
+
+        # Non-strict mode: exit code 0
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(len(warnings), 5)
+
+        stderr_output = captured_stderr.getvalue()
+        self.assertIn("bad-dep.md in index: Invalid deprecated 'nope'", stderr_output)
+        self.assertIn("bad-sources-raw.md in index: Invalid sources 'nope'", stderr_output)
+        self.assertIn("bad-sources-unquoted.md in index: Invalid sources '[unquoted]'", stderr_output)
+        self.assertIn("bad-stem.md in index: ID 'mismatched-stem' does not match filename stem 'bad-stem'", stderr_output)
+        self.assertIn("bad-status.md in index: Invalid status 'bogus'", stderr_output)
+
+        # Valid neighbours still indexed
+        content = self.index_file.read_text(encoding="utf-8")
+        self.assertIn("[[std-alpha|Alpha Standard]]", content)
+        self.assertIn("[[std-omega|Omega Standard]]", content)
+
+        # Invalid entries excluded from index
+        self.assertNotIn("bad-dep", content)
+        self.assertNotIn("bad-sources-raw", content)
+        self.assertNotIn("bad-sources-unquoted", content)
+        self.assertNotIn("mismatched-stem", content)
+        self.assertNotIn("bad-status", content)
+
+        # Strict mode: exit code 1
+        exit_code_strict, warnings_strict = generate_index(self.vault, strict=True)
+        self.assertEqual(exit_code_strict, 1)
+        self.assertEqual(len(warnings_strict), 5)
+
 
 if __name__ == "__main__":
     unittest.main()

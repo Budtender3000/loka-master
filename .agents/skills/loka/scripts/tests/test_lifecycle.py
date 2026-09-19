@@ -508,6 +508,94 @@ class TestLifecycle(unittest.TestCase):
             )
         self.assertIn("does not match expected base-hash", str(ctx.exception).lower())
 
+    def test_lifecycle_operations_succeed_despite_unrelated_invalid_artifacts_in_vault(self):
+        """Confirm promote/deprecate/undeprecate/mint succeed when unrelated invalid artifacts exist elsewhere in vault."""
+        # 1. Create an unrelated invalid artifact in standards/
+        self._create_artifact(
+            "standards",
+            "unrelated-broken",
+            [
+                "---",
+                "id: unrelated-broken",
+                "name: Unrelated Broken",
+                "type: standard",
+                "description: Has invalid deprecated value",
+                "deprecated: nope",
+                "---",
+                "# Unrelated Broken",
+            ],
+        )
+
+        # 2. Create a valid draft target in standards/
+        target = self._create_artifact(
+            "standards",
+            "valid-target",
+            [
+                "---",
+                "id: valid-target",
+                "name: Valid Target",
+                "type: standard",
+                "status: draft",
+                "description: Target to promote",
+                "---",
+                "# Valid Target",
+            ],
+        )
+
+        # Promote valid target: must succeed (generate_index runs non-strict)
+        old_status, new_status = promote_artifact(target, brain_dir=self.vault)
+        self.assertEqual(old_status, "draft")
+        self.assertEqual(new_status, "test")
+
+        # Confirm target is promoted on disk and in index; broken is skipped in index
+        fm, _, _ = parse(target.read_text(encoding="utf-8"))
+        self.assertEqual(fm["status"], "test")
+        index_content = self.index_file.read_text(encoding="utf-8")
+        self.assertIn("[[valid-target|Valid Target]]", index_content)
+        self.assertNotIn("unrelated-broken", index_content)
+
+        # Deprecate valid target: must also succeed
+        res = deprecate_artifact(target, brain_dir=self.vault)
+        self.assertTrue(res)
+        index_content_dep = self.index_file.read_text(encoding="utf-8")
+        self.assertIn("deprecated: `true`", index_content_dep)
+        self.assertNotIn("unrelated-broken", index_content_dep)
+
+        # Undeprecate valid target: must also succeed
+        res_undep = undeprecate_artifact(target, brain_dir=self.vault)
+        self.assertTrue(res_undep)
+        index_content_undep = self.index_file.read_text(encoding="utf-8")
+        self.assertIn("deprecated: `false`", index_content_undep)
+        self.assertNotIn("unrelated-broken", index_content_undep)
+
+        # Mint new artifact: must also succeed despite unrelated invalid artifact
+        draft_file = self.vault / "mint_draft.tmp"
+        draft_content = (
+            "---\n"
+            "id: newly-minted\n"
+            "name: Newly Minted\n"
+            "type: standard\n"
+            "description: Minted while vault has broken files\n"
+            "---\n\n"
+            "# Newly Minted\n"
+        )
+        draft_file.write_text(draft_content, encoding="utf-8")
+        expected_hash = hashlib.sha256(draft_file.read_bytes()).hexdigest()
+
+        mint_target = self.vault / "standards" / "newly-minted.md"
+        action, t_path = mint_artifact(
+            action="NEW_MINT",
+            target_path=mint_target,
+            draft_file=draft_file,
+            expected_hash=expected_hash,
+            brain_dir=self.vault,
+        )
+        self.assertEqual(action, "NEW_MINT")
+        self.assertTrue(mint_target.is_file())
+        index_content_mint = self.index_file.read_text(encoding="utf-8")
+        self.assertIn("[[newly-minted|Newly Minted]]", index_content_mint)
+        self.assertNotIn("unrelated-broken", index_content_mint)
+
 
 class TestLifecycleCLI(unittest.TestCase):
     def setUp(self):

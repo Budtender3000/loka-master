@@ -8,6 +8,7 @@ from typing import List, Optional, Tuple, Union
 
 from .frontmatter import (
     CANONICAL_DOMAINS,
+    check_semantics,
     domain_title,
     domain_to_type,
     parse,
@@ -121,12 +122,11 @@ def generate_index(
 
             fm, body, problems = parse(file_content)
 
-            # Check unparseable frontmatter
-            fatal = [p for p in problems if p.code in FATAL_PARSE_CODES]
-            if fatal:
-                warn = f"Unparseable frontmatter in {file_path}: {fatal[0].message}"
+            # Check parse problems
+            if problems:
+                warn = f"{problems[0].message} in {file_path}"
                 warnings.append(warn)
-                sys.stderr.write(f"WARNING: Skipping {file_path} in index: {fatal[0].message}\n")
+                sys.stderr.write(f"WARNING: Skipping {file_path} in index: {problems[0].message}\n")
                 continue
 
             # Check required fields
@@ -143,6 +143,17 @@ def generate_index(
                 )
                 continue
 
+            # Check semantic validity
+            sem_problems = [
+                p for p in check_semantics(fm, file_path)
+                if p.code != "missing_required_field"
+            ]
+            if sem_problems:
+                warn = f"{sem_problems[0].message} in {file_path}"
+                warnings.append(warn)
+                sys.stderr.write(f"WARNING: Skipping {file_path} in index: {sem_problems[0].message}\n")
+                continue
+
             fid = fm.get("id")
             name = fm.get("name")
             ftype = fm.get("type")
@@ -153,7 +164,13 @@ def generate_index(
             name = name or fid
             ftype = ftype or domain_to_type(domain)
             status = fm.get("status") or "draft"
-            deprecated = fm.get("deprecated") or "false"
+            dep_val = fm.get("deprecated")
+            if isinstance(dep_val, bool):
+                deprecated = "true" if dep_val else "false"
+            elif dep_val is not None and str(dep_val).strip():
+                deprecated = str(dep_val).strip().lower()
+            else:
+                deprecated = "false"
             created = fm.get("created") or "undated"
             description = description or "No description provided."
 
