@@ -8,10 +8,11 @@
 
 ## 1. Project Identity & Scope
 
-- **OPERATE** within the confirmed boundary of LOKA (Local Open Knowledge Artifact).
+- **OPERATE** within the confirmed boundary of LOKA (Local Open Knowledge Artifact), scoped strictly to `./.agents/loka-brain/` and LOKA skill operations.
 - **TREAT** `./.agents/loka-brain/` as the modular, machine-actionable Knowledge Artifact vault.
 - **CONFINE** all verification lookups and evidence searches strictly to the active workspace.
-- **EXCLUDE** all foreign architecture, private host terminology, and container concepts (including `buds_*` or `BUDTENDER_*`) from this repository.
+- **EXCLUDE** all foreign architecture, private host terminology, and container concepts from the vault.
+- **DO NOT** restrict or govern host application code outside `./.agents/` via this operating contract.
 
 ## 2. Vault Portability & Runtime Decoupling
 
