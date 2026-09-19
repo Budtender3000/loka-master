@@ -2,7 +2,7 @@
 name: loka-git-manager
 description: Use for all local Git operations in any repository; pre-flight checks, atomic Conventional Commits, secret and debug scanning, dirty worktree recovery, and local tagging. Trigger whenever git commits, status verification, branch safety, or tags are needed.
 type: skill
-version: 0.2.0
+version: 0.2.1
 owner: USER
 ---
 
@@ -17,6 +17,9 @@ Provides strict, deterministic local Git operations for any repository across th
 - **EXECUTE** all Git operations strictly within the confirmed active repository.
 - **DO NOT** execute automatic push operations without explicit user approval.
 - **DO NOT** push to the `main` branch without explicit user approval.
+- **RECOMMEND** `git push -u <remote> <branch>` on the first user-approved push of a branch without upstream to configure tracking.
+- **DO NOT** treat a bare `## <branch>` from `git status -sb` (lacking `...<remote>/<branch>`) as evidence of synchronization; treat it strictly as unconfigured upstream.
+- **VERIFY** remote sync claims strictly via raw output of `git fetch` followed by `git rev-list --left-right --count HEAD...<remote>/<branch>` (expecting `0 0`) or matching commit hashes via `git rev-parse HEAD <remote>/<branch>`.
 - **CREATE** Git tags strictly after explicit user approval.
 - **DO NOT** create GitHub releases or execute `gh` CLI commands in this skill.
 - **DO NOT** switch repository contexts or execute operations across parent directories.

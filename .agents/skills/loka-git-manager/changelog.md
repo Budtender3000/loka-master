@@ -1,5 +1,8 @@
 ## Changelog
 
+### v0.2.1
+- **Push & Synchronization Verification:** Defined deterministic verification requirements for remote sync claims (`git fetch` + `git rev-list --left-right --count` or `git rev-parse`), prohibited treating bare `## <branch>` as sync evidence, and added upstream tracking recommendation (`git push -u`) on first user-approved push.
+
 ### v0.2.0
 - **Instruction Formatting & Normative Operators:** Refactored `SKILL.md` to strictly adhere to `formatting.md` with front-positioned imperative verbs (`**EXECUTE**`, `**VERIFY**`, `**INSPECT**`, `**ISOLATE**`, `**FORMAT**`, `**STAGE**`).
 - **Hard STOP Rules:** Formalized operational stop rules into an explicit alert block covering CWD mismatches, unexpected changes, ambiguous branch states, and secret/debug findings.

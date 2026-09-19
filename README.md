@@ -35,7 +35,7 @@ LOKA bundles three specialized skills under `.agents/skills/`:
 | Skill | Version | Purpose | Path |
 |---|---|---|---|
 | `loka` | 0.3.0 | Master orchestrator governing artifact minting, review, lifecycle promotion, and deprecation. | [`.agents/skills/loka/SKILL.md`](.agents/skills/loka/SKILL.md) |
-| `loka-git-manager` | 0.2.0 | Local Git operations manager for pre-flight checks, atomic Conventional Commits, and secret scans. | [`.agents/skills/loka-git-manager/SKILL.md`](.agents/skills/loka-git-manager/SKILL.md) |
+| `loka-git-manager` | 0.2.1 | Local Git operations manager for pre-flight checks, atomic Conventional Commits, and secret scans. | [`.agents/skills/loka-git-manager/SKILL.md`](.agents/skills/loka-git-manager/SKILL.md) |
 | `loka-log` | 0.2.7 | Workspace archivist managing session evidence logging, log querying, and handover capture. | [`.agents/skills/loka-log/SKILL.md`](.agents/skills/loka-log/SKILL.md) |
 
 ## Quickstart
