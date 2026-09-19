@@ -8,7 +8,7 @@
 
 ## 1. Pre-Flight Knowledge Discovery
 
-- **EXECUTE** a pre-flight inspection via `view_file` on `./.agents/loka-brain/index.md` before planning, designing, or implementing any non-trivial code, script, or schema modification.
+- **EXECUTE** a pre-flight inspection by reading `./.agents/loka-brain/index.md` before planning, designing, or implementing any non-trivial code, script, or schema modification.
 - **IDENTIFY** applicable Knowledge Artifacts (KA) across canonical domains (`behaviors/`, `standards/`, `workflows/`, `tools/`) mapped to the active task requirements.
 - **SKIP** pre-flight inspection ONLY for purely informational queries or trivial single-line typo fixes.
 
@@ -16,7 +16,7 @@
 
 - **APPLY** the Economical Reading doctrine: never ingest entire repositories, directories, or the whole vault opportunistically.
 - **RESTRICT** knowledge retrieval strictly to 1 to 3 essential modules per specific task.
-- **LOAD** identified artifacts via `view_file` using relative paths (e.g. `./.agents/loka-brain/<domain>/<file>.md`).
+- **LOAD** identified artifacts by reading relative paths (e.g. `./.agents/loka-brain/<domain>/<file>.md`).
 - **JUSTIFY** every artifact read by explicitly tying it to an active requirement or constraint in scratchpad notes or reasoning.
 - **DO NOT** perform exploratory or speculative reads across adjacent domain folders.
 

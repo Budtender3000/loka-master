@@ -15,7 +15,7 @@ Example prompt: `Mint this pattern as a standard: <text>`
 3. **Creation & Review Pipeline:** To propose new knowledge, the agent delegates to the `loka` skill's `mint-master` subagent, which drafts candidate content; the main agent/orchestrator then computes a verbatim SHA-256 `DRAFT_HASH` via `sha256sum`. For auditing and lifecycle advancement, the `loka` skill's `review-master` evaluates existing artifacts across 5 semantic dimensions.
 4. **Human Gate & Execution:** The candidate and `DRAFT_HASH` are presented to the human custodian. Upon explicit approval, the `loka` skill dispatches a privileged write worker (`writer-worker`) to execute `loka mint` (or `promote`/`deprecate`), writing the file atomically, formatting frontmatter, and updating the catalog with rollback on failure.
 
-The entire governance framework, skills, and knowledge vault reside within [`./.agents/`](./.agents/README.md), allowing the framework to be placed directly inside any host repository.
+The entire governance framework, skills, and knowledge vault reside within [`./.agents/`](./.agents/), allowing the framework to be placed directly inside any host repository.
 
 ### Host Project Integration
 
@@ -25,6 +25,7 @@ To enable an agent to discover and consume `loka-brain`, append the snippet from
 # LOKA
 
 - **ENFORCE** `./.agents/loka-brain/LOKA.md` as the authoritative knowledge consumption and retrieval contract before planning, designing, or modifying code.
+- **ENFORCE** `./.agents/AGENTS.md` for workspace operating contract, custodian mandate, risk tiers, and skill delegation.
 ```
 
 ## Skills
@@ -150,6 +151,5 @@ python3 -m unittest discover -s ./.agents/skills/loka/scripts/tests
 
 ## Documentation & Standards
 
-- [Vault Architecture & Skill Reference](.agents/README.md)
 - [Knowledge Artifact Schema Specification v0.3.0](.agents/loka-brain/schema.md)
 - [Workspace Operating Contract](.agents/AGENTS.md)
