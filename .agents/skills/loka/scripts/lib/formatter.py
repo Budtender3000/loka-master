@@ -4,7 +4,7 @@ import os
 import re
 import shutil
 from pathlib import Path
-from typing import List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 from .frontmatter import Frontmatter, Problem, parse, render
 
@@ -107,26 +107,67 @@ def detect_fix_categories(old_text: str, new_text: str) -> List[str]:
     if unique_old_keys != new_keys:
         categories.append("key_order")
 
-    # Redundant quotes
-    for line in old_fm_lines:
-        if ":" in line:
-            val = line.split(":", 1)[1].strip()
-            if (val.startswith('"') and val.endswith('"') and len(val) >= 2) or (
-                val.startswith("'") and val.endswith("'") and len(val) >= 2
-            ):
-                inner = val[1:-1]
-                if not any(c in inner for c in (": ", "{", "}", "[", "]")):
-                    if "redundant_quotes" not in categories:
-                        categories.append("redundant_quotes")
+    # Build dictionaries of field values from old and new frontmatter
+    new_lines = new_text.splitlines(keepends=True)
+    new_fm_lines: List[str] = []
+    if new_lines and re.match(r"^---[ \t]*$", new_lines[0].rstrip("\r\n")):
+        for line in new_lines[1:]:
+            if re.match(r"^---[ \t]*$", line.rstrip("\r\n")):
+                break
+            new_fm_lines.append(line.rstrip("\r\n"))
 
-    # Required quotes (unquoted special syntax characters like ': ' or brackets)
+    old_vals: Dict[str, str] = {}
     for line in old_fm_lines:
-        if ":" in line:
-            val = line.split(":", 1)[1].strip()
-            if not ((val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'"))):
-                if any(c in val for c in (": ", "{", "}", "[", "]")):
-                    if "quotes_required" not in categories:
-                        categories.append("quotes_required")
+        if ":" in line and not line.strip().startswith("#"):
+            k, val = line.split(":", 1)
+            norm_k = k.strip().lower()
+            if norm_k not in old_vals:
+                old_vals[norm_k] = val.strip()
+
+    new_vals: Dict[str, str] = {}
+    for line in new_fm_lines:
+        if ":" in line and not line.strip().startswith("#"):
+            k, val = line.split(":", 1)
+            norm_k = k.strip().lower()
+            if norm_k not in new_vals:
+                new_vals[norm_k] = val.strip()
+
+    # Quote changes derived directly from actual value diffs
+    for k, old_val in old_vals.items():
+        if k not in new_vals:
+            continue
+        new_val = new_vals[k]
+        if old_val == new_val:
+            continue
+
+        # Handle inline array (sources)
+        if k == "sources" and old_val.startswith("[") and old_val.endswith("]") and new_val.startswith("[") and new_val.endswith("]"):
+            old_tokens = [t.strip() for t in old_val[1:-1].split(",") if t.strip()]
+            new_tokens = [t.strip() for t in new_val[1:-1].split(",") if t.strip()]
+
+            old_quoted = any((t.startswith('"') and t.endswith('"')) or (t.startswith("'") and t.endswith("'")) for t in old_tokens)
+            old_unquoted = any(not ((t.startswith('"') and t.endswith('"')) or (t.startswith("'") and t.endswith("'"))) for t in old_tokens)
+            new_quoted = any((t.startswith('"') and t.endswith('"')) for t in new_tokens)
+            new_unquoted = any(not (t.startswith('"') and t.endswith('"')) for t in new_tokens)
+
+            if old_unquoted and new_quoted and "quotes_required" not in categories:
+                categories.append("quotes_required")
+            if old_quoted and new_unquoted and "redundant_quotes" not in categories:
+                categories.append("redundant_quotes")
+            continue
+
+        # Handle scalar string fields
+        old_is_quoted = (old_val.startswith('"') and old_val.endswith('"') and len(old_val) >= 2) or (
+            old_val.startswith("'") and old_val.endswith("'") and len(old_val) >= 2
+        )
+        new_is_quoted = (new_val.startswith('"') and new_val.endswith('"') and len(new_val) >= 2) or (
+            new_val.startswith("'") and new_val.endswith("'") and len(new_val) >= 2
+        )
+
+        if old_is_quoted and not new_is_quoted and "redundant_quotes" not in categories:
+            categories.append("redundant_quotes")
+        elif not old_is_quoted and new_is_quoted and "quotes_required" not in categories:
+            categories.append("quotes_required")
 
     # Trailing whitespace (whole document)
     for line in old_lines:

@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Validator Alignment:** Replaced stale `loka audit` references with `loka-review-master` semantic review in `schema.md`, aligned `SKILL.md` CLI entry point with `loka.py --help`, and clarified `loka index` catalog rewrite semantics in `AGENTS.md`.
 
 ### Fixed
+- **Formatter Quote Detection:** Fixed false positive `quotes_required` detection in `formatter.py` for valid inline arrays (`sources: ["..."]`) by deriving quote change categories directly from frontmatter value diffs.
 - **Retrospective Prompt Target:** Updated `retrospective.prompt.md` target path to `.agents/loka-brain/retrospectives.md` and sanitized legacy directory initialization.
 - **Tooling Discovery:** Purged legacy uppercase `LOKA-brain` fallback paths from `apply_mint.sh`, `audit.sh`, and `index.sh`.
 

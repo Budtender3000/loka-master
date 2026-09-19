@@ -145,6 +145,54 @@ class TestFormatter(unittest.TestCase):
         self.assertIn("blank_lines_frontmatter", categories)
         self.assertIn("trailing_whitespace", categories)
 
+    def test_sources_array_no_false_positive_quotes_required(self):
+        """Regression test: artifact with valid sources array yields no changes and format --check exits 0."""
+        import subprocess
+        import tempfile
+
+        artifact = (
+            "---\n"
+            "id: test-sources-regression\n"
+            "name: Test Sources Regression\n"
+            "type: standard\n"
+            "description: Regression test for sources array quoting.\n"
+            'sources: ["https://example.org/x"]\n'
+            "---\n\n"
+            "# Test Sources Regression\n\n"
+            "## Context\n\n"
+            "Context here.\n\n"
+            "## Mechanism\n\n"
+            "Mechanism here.\n\n"
+            "## Rules\n\n"
+            "- **DO** keep valid sources unchanged.\n"
+        )
+        formatted = format_text(artifact)
+        self.assertEqual(formatted, artifact)
+        self.assertEqual(detect_fix_categories(artifact, formatted), [])
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "test-sources-regression.md"
+            file_path.write_text(artifact, encoding="utf-8")
+
+            # format --check via CLI must exit 0
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPTS_DIR / "loka.py"),
+                    "format",
+                    "--check",
+                    str(file_path),
+                ],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                proc.returncode,
+                0,
+                f"format --check failed with code {proc.returncode}: {proc.stderr}",
+            )
+            self.assertIn("Files needing changes: 0", proc.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
