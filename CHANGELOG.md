@@ -7,31 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-19
+
 ### Added
-- **Public Release Documentation & Licensing:** Added standard MIT LICENSE and rewrote repository README.md with factual agent operating workflow, verified quickstart lifecycle execution, and CLI command reference.
-- **Frontmatter Semantic Validation:** Added calendar date validation (`created`, `stale_after` matching `YYYY-MM-DD` and verified with `datetime.date.fromisoformat`) and canonical trust signal enum validation (`verified` in `human|attested|automated`) in `check_semantics`, rejecting invalid values across `loka promote`, `deprecate`, and `mint`.
-- **Root Bootstrap Gateway:** Added a minimal, deterministic root `AGENTS.md` serving strictly as an external agent interoperability bootstrap pointing to `.agents/AGENTS.md` with explicit anti-drift constraints.
+- **Python CLI Tooling Suite:** Migrated vault management from legacy Bash scripts to a zero-dependency Python 3 CLI (`.agents/skills/loka/scripts/loka.py`) providing unified `format`, `index`, `promote`, `deprecate`, `undeprecate`, and `mint` subcommands with automated transactional rollback.
+- **Unit Test Suite:** Added comprehensive `unittest` suite (61 tests) covering frontmatter parsing, mechanical formatting, progressive disclosure catalog indexing, and transactional lifecycle mutations.
+- **Knowledge Consumption Contract & Host Integration:** Introduced `.agents/loka-brain/LOKA.md` as the dedicated read-only consumption contract, `AGENTS.template.md` as the bootstrap snippet for host repositories, and documented installation, embedding, and update procedures.
+- **Frontmatter Semantic Validation:** Added calendar date validation (`created`, `stale_after` matching `YYYY-MM-DD` validated via `datetime.date.fromisoformat`) and canonical trust signal enum validation (`verified` in `human|attested|automated`) in `check_semantics`, rejecting invalid values across `loka promote`, `deprecate`, and `mint`.
+- **Root Bootstrap Gateway:** Added a minimal, deterministic root `AGENTS.md` serving strictly as an external agent interoperability bootstrap pointing to `.agents/loka-brain/LOKA.md` and `.agents/AGENTS.md`.
 - **Skill-Centric Changelogs:** Added dedicated, isolated `changelog.md` ledgers for each core skill (`.agents/skills/loka/`, `.agents/skills/loka-git-manager/`, `.agents/skills/loka-log/`).
 - **Session Memory Tracking:** Added `.agents/memories/sessions/` to tracked architecture documentation for factual execution audit trails.
+- **Licensing:** Added standard MIT LICENSE for public release.
 
 ### Changed
-- **README Skills Section & Discovery:** Added bundled skills reference table to `README.md` and documented agent skill discovery and delegation via root `AGENTS.md` and `.agents/AGENTS.md` §8.
-- **README Clarity & Flow Refinements:** Refined repository README.md with an example prompt line, clarified orchestrator hash calculation and review master roles, standardized sample paths, and added vault reset instructions.
-- **Operational Substrate Documentation:** Synchronized `.agents/README.md` with schema v0.3.0 and Python CLI architecture (`scripts/loka.py`), updated sequence workflows, aligned CLI commands, and removed host-specific ignore rules in `.gitignore`.
-- **Schema Enforcement Attribution:** Re-attributed `REPORT` class rows in `schema.md` Section 5 to their concrete validators: mapping `status` enum, non-boolean `deprecated`, ISO-8601 dates, `verified` trust signal, and `sources` array syntax enforcement to `check_semantics` (via `loka promote`/`deprecate`/`mint`).
-- **Schema Specification v0.3.0:** Upgraded `.agents/loka-brain/schema.md` to specification version 0.3.0. Replaced closing delimiter line formula with compact delimiter invariant (one key per line, no blank lines), codified double-quoting triggers matching `render()`, aligned `sources` array syntax with double quotes, pruned Section 3.4 mandatory section tokens, delegated secret scanning to `loka-git-manager`, and introduced the binary `AUTO-FIX` vs `REPORT` fix class classification.
-- **Unified Governance Architecture:** Consolidated dual `AGENTS.md` contracts into a single authoritative operating contract at `.agents/AGENTS.md`, eliminating empty delegation stubs and rule duplications.
+- **README Rewrite & Host Integration Guide:** Completely rewrote repository `README.md` with standalone and embedded installation instructions, update procedures for host repositories, vault taxonomy overview, full CLI command reference, and verified quickstart lifecycle execution.
+- **Unified Governance Architecture:** Consolidated operating contract governance into `.agents/AGENTS.md` with root `AGENTS.md` serving as an external agent bootstrap pointing to `.agents/loka-brain/LOKA.md` and `.agents/AGENTS.md`, eliminating empty delegation stubs and rule duplications.
 - **Self-Contained Framework Substrate:** Fully encapsulated LOKA governance, skills, and vault under `.agents/`, eliminating root-level file conflicts for seamless embedding into host repositories.
-- **Skill Suite Standardization:** Aligned all core skill frontmatters with standard metadata schema (`type: skill`, `version`, `owner: USER`), syncing `loka` to v0.2.1, `loka-git-manager` to v0.2.0, and `loka-log` to v0.2.7.
-- **Documentation Parity:** Updated `README.md` and `.agents/README.md` to reflect unified architecture, correct subagent naming (`loka-writer-worker`), and current skill version matrix.
-- **Validator Alignment:** Replaced stale `loka audit` references with `loka-review-master` semantic review in `schema.md`, aligned `SKILL.md` CLI entry point with `loka.py --help`, and clarified `loka index` catalog rewrite semantics in `AGENTS.md`.
+- **Vault-Scoped Operating Contract:** Refactored `.agents/AGENTS.md` §1 scope boundaries to explicitly govern only `./.agents/loka-brain/` and LOKA skill operations, clarifying that host application code outside `./.agents/` is not restricted.
+- **Runtime-Neutral Agent Instructions:** Decoupled agent contracts and instructions (`LOKA.md`, `.agents/AGENTS.md`) from platform-specific tool syntax, replacing `view_file` references with runtime-neutral reading directives.
+- **Git Safety & Sync Verification:** Enhanced `loka-git-manager` to v0.2.1 with strict post-push remote synchronization verification rules (`git fetch` + `git rev-list --left-right --count` / `git rev-parse`), prohibited treating bare `## <branch>` status as sync evidence, and added upstream tracking recommendations (`git push -u`).
+- **Schema Specification v0.3.0:** Upgraded `.agents/loka-brain/schema.md` to specification version 0.3.0. Replaced closing delimiter line formula with compact delimiter invariant (one key per line, no blank lines), codified double-quoting triggers matching `render()`, aligned `sources` array syntax with double quotes, pruned Section 3.4 mandatory section tokens, delegated secret scanning to `loka-git-manager`, and introduced the binary `AUTO-FIX` vs `REPORT` fix class classification.
+- **Schema Enforcement Attribution:** Re-attributed `REPORT` class rows in `schema.md` Section 5 to their concrete validators: mapping `status` enum, non-boolean `deprecated`, ISO-8601 dates, `verified` trust signal, and `sources` array syntax enforcement to `check_semantics` (via `loka promote`/`deprecate`/`mint`).
+- **Skill Suite Standardization:** Aligned all core skill frontmatters with standard metadata schema (`type: skill`, `version`, `owner: USER`), syncing `loka` to v0.3.0, `loka-git-manager` to v0.2.1, and `loka-log` to v0.2.7.
+- **Positive Technical English Directive:** Codified affirmative, clear technical English composition across schemas and agent instructions.
+
+### Removed
+- **Single README Policy:** Deleted `.agents/README.md` to establish root `README.md` as the single authoritative project documentation entry point, removing redundant architectural tables and dead links.
+- **Legacy Bash Scripts:** Removed deprecated `audit.sh`, `index.sh`, `apply_mint.sh`, and `parse_frontmatter.sh` in favor of the Python CLI suite.
 
 ### Fixed
 - **Index Generator Validation:** Enforced comprehensive parse and semantic validation in `scripts/lib/indexer.py` (`generate_index`), validating every knowledge artifact with `parse()` and `check_semantics()`. Any defect (`invalid_deprecated`, `invalid_sources`, unparseable syntax, missing required fields, `id_stem_mismatch`, `invalid_status`, etc.) excludes the artifact from `index.md`, emits a warning on stderr, and causes `loka index --strict` to exit with status 1 while maintaining non-strict exit 0 for isolated lifecycle operations.
 - **Strict Frontmatter Validation:** Stopped coercing invalid `sources` and `deprecated` values in `frontmatter.py` and `formatter.py`. Added semantic validation rejecting non-boolean `deprecated` (`invalid_deprecated`) and non-array or unquoted `sources` (`invalid_sources`), ensuring lifecycle operations (`promote`, `deprecate`, `undeprecate`, `mint`) and `loka format` exit 1 and leave invalid files untouched.
 - **Formatter Quote Detection:** Fixed false positive `quotes_required` detection in `formatter.py` for valid inline arrays (`sources: ["..."]`) by deriving quote change categories directly from frontmatter value diffs.
 - **Retrospective Prompt Target:** Updated `retrospective.prompt.md` target path to `.agents/loka-brain/retrospectives.md` and sanitized legacy directory initialization.
-- **Tooling Discovery:** Purged legacy uppercase `LOKA-brain` fallback paths from `apply_mint.sh`, `audit.sh`, and `index.sh`.
+- **Tooling Discovery:** Purged legacy uppercase `LOKA-brain` fallback paths from tooling scripts.
 
 ## [0.2.4] - 2026-09-17
 
