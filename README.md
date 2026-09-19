@@ -56,8 +56,8 @@ Update with `git pull`.
 Run in the root of the host project:
 
 ```bash
-curl -sL https://codeload.github.com/Budtender3000/loka-master/tar.gz/refs/heads/main \
-  | tar -xz --strip-components=1 loka-master-main/.agents loka-master-main/AGENTS.template.md
+curl -sL https://codeload.github.com/Budtender3000/loka-master/tar.gz/refs/tags/v0.3.0 \
+  | tar -xz --strip-components=1 loka-master-0.3.0/.agents loka-master-0.3.0/AGENTS.template.md
 { echo; cat AGENTS.template.md; } >> AGENTS.md && rm AGENTS.template.md
 ```
 
@@ -69,7 +69,7 @@ This adds `.agents/` (skills, operating contract, empty vault) and appends the L
 
 ```bash
 tmp=$(mktemp -d)
-curl -sL https://codeload.github.com/Budtender3000/loka-master/tar.gz/refs/heads/main \
+curl -sL https://codeload.github.com/Budtender3000/loka-master/tar.gz/refs/tags/v0.3.0 \
   | tar -xz --strip-components=1 -C "$tmp"
 rm -rf .agents/skills && cp -r "$tmp/.agents/skills" .agents/skills
 cp "$tmp/.agents/AGENTS.md" .agents/AGENTS.md
