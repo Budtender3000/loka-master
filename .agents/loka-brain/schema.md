@@ -135,7 +135,7 @@ Every Knowledge Artifact must conform to one of the following two exact H2 headi
 Every requirement in this specification is a normative invariant evaluated as a binary `PASS` or `FAIL`. Non-blocking warnings and severity levels are prohibited.
 
 - **`AUTO-FIX`:** Mechanically remediated exclusively via explicit invocation of `loka format`.
-- **`REPORT`:** Validated by `loka-review-master` semantic review, `check_semantics` (via `loka promote`/`deprecate`/`mint`), or `frontmatter.parse`; reports binary `FAIL` upon violation and never modifies files.
+- **`REPORT`:** Validated by `loka-review-master` semantic review or `check_semantics` (via `loka promote`/`deprecate`/`mint`); reports binary `FAIL` upon violation and never modifies files.
 
 | Rule / Invariant | Fix Class | Operational Remediation |
 |---|---|---|
@@ -148,10 +148,10 @@ Every requirement in this specification is a normative invariant evaluated as a 
 | Opening delimiter presence | `REPORT` | `loka-review-master` reports missing opening `---` on line 1 |
 | Mandatory field presence (`id`, `name`, `type`, `description`) | `REPORT` | `loka-review-master` reports missing or empty mandatory fields |
 | Canonical domain & type alignment | `REPORT` | `loka-review-master` reports mismatch between `type` and parent domain folder |
-| Status & deprecation enum values | `REPORT` | `check_semantics` reports invalid `status` (via `loka promote`/`deprecate`/`mint`); `frontmatter.parse` extracts `deprecated` boolean |
+| Status & deprecation enum values | `REPORT` | `check_semantics` reports invalid `status` or non-boolean `deprecated` (via `loka promote`/`deprecate`/`mint`) |
 | ISO-8601 date format (`created`, `stale_after`) | `REPORT` | `check_semantics` reports invalid date format or calendar date (via `loka promote`/`deprecate`/`mint`) |
 | Trust signal values (`verified`) | `REPORT` | `check_semantics` reports unapproved `verified` enum values (via `loka promote`/`deprecate`/`mint`) |
-| Sources array syntax | `REPORT` | `frontmatter.parse` extracts inline array syntax (`[...]`) |
+| Sources array syntax | `REPORT` | `check_semantics` reports non-array or unquoted `sources` (via `loka promote`/`deprecate`/`mint`) |
 | Schema purity | `REPORT` | `loka-review-master` reports undeclared, unknown, or legacy keys |
 | Identifier equality (`id == filename_stem`) | `REPORT` | `loka-review-master` reports mismatch between `id` and filename stem |
 | File placement | `REPORT` | `loka-review-master` reports artifacts outside canonical domain roots or nested subdirectories |
