@@ -70,7 +70,7 @@
 - **LOCATE** every knowledge artifact strictly one level deep within its corresponding domain directory (`./.agents/loka-brain/<domain>/<filename>.md`).
 - **PROHIBIT** subdirectories within canonical domain directories.
 - **PROHIBIT** cross-domain artifacts; every artifact must belong strictly to exactly one domain folder.
-- **INSPECT** `./.agents/loka-brain/index.md` via `view_file` as the authoritative master catalog for discovering registered knowledge artifacts.
+- **INSPECT** `./.agents/loka-brain/index.md` by reading the file as the authoritative master catalog for discovering registered knowledge artifacts.
 
 ### 4.2 Context Economy & Economical Reading
 - **APPLY** the Economical Reading doctrine: never ingest entire repositories, the entire vault, or entire domain directories opportunistically; read strictly on demand.
@@ -116,7 +116,7 @@
 ### 6.1 Dynamic Execution Workflow
 - **EXECUTE** non-trivial tasks through a structured 5-stage progression:
   1. Scope Analysis: Deconstruct requirements and identify active operational boundaries.
-  2. Index Lookup: Execute `view_file` on `./.agents/loka-brain/index.md` to locate relevant knowledge modules.
+  2. Index Lookup: Read the file `./.agents/loka-brain/index.md` to locate relevant knowledge modules.
   3. Targeted Knowledge Retrieval: Retrieve strictly 1 to 3 essential modules under Economical Reading.
   4. Plan Formulation & Execution: Apply retrieved domain standards and execute atomic changes.
   5. Standardized Output Verification: Validate outputs against domain schemas and output contracts before release.
