@@ -193,7 +193,7 @@ Each artifact lives one level deep in exactly one domain folder.
 |---|---|---|
 | `id` | required | kebab-case; equals the filename stem |
 | `name` | required | display name; equals the H1 |
-| `type` | required | artifact type |
+| `type` | required | enum: `profile`, `behavior`, `standard`, `workflow`, `tool`, `meta`; must equal the parent domain folder in singular form |
 | `description` | required | one line, shown in the index |
 | `status` | optional | `draft` → `test` → `active` |
 | `deprecated` | optional | `true` / `false` |
@@ -228,7 +228,7 @@ python3 .agents/skills/loka/scripts/loka.py <command> [options]
 | `promote` | `file`, `--vault VAULT` | Advance status by one step. |
 | `deprecate` | `file`, `--vault VAULT` | Set `deprecated: true`. |
 | `undeprecate` | `file`, `--vault VAULT` | Set `deprecated: false`. |
-| `mint` | `--action {NEW_MINT,MERGE}`, `--target TARGET`, `--draft-file DRAFT_FILE`, `--expected-hash HASH`, `[--base-hash HASH]`, `[--vault VAULT]` | Transactional write with path containment, SHA-256 verification, and rollback. |
+| `mint` | `--action {NEW_MINT,MERGE}`, `--target TARGET`, `--draft-file DRAFT_FILE`, `[--expected-hash HASH]`, `--base-hash HASH` (MERGE only), `[--vault VAULT]` | Transactional write with path containment, SHA-256 verification, and rollback. |
 
 **Exit codes:** `0` success (warnings allowed in non-strict mode); `1` validation failure, syntax error, `--check` found differences, or artifacts skipped under `--strict`.
 
