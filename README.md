@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/loka-wordmark-512-light.svg">
+  <img alt="LOKA" src="assets/loka-wordmark-512.svg" width="420">
+</picture>
+
 # LOKA — Local Open Knowledge Artifact
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
