@@ -66,23 +66,28 @@ curl -sL https://codeload.github.com/Budtender3000/loka-master/tar.gz/refs/tags/
 { echo; cat AGENTS.template.md; } >> AGENTS.md && rm AGENTS.template.md
 ```
 
-This adds `.agents/` (skills, operating contract, empty vault) and appends the LOKA snippet to the host `AGENTS.md` (see [Host Project Integration](#host-project-integration)). Commit `.agents/` with the project.
+This adds `.agents/` (skills, operating contract, empty vault) and appends the LOKA snippet to the host `AGENTS.md` (see [Host Project Integration](#host-project-integration)). Existing files with matching paths under `.agents/` (such as `.agents/AGENTS.md` and same-named skills) are overwritten; all other host files are preserved. Run the install once per project; to upgrade, use [Updating an embedded installation](#updating-an-embedded-installation). Commit `.agents/` with the project.
 
 ### Updating an embedded installation
 
 `.agents/loka-brain/` contains the user's artifacts and `index.md`. Update only the framework files:
 
 ```bash
-tmp=$(mktemp -d)
-curl -sL https://codeload.github.com/Budtender3000/loka-master/tar.gz/refs/tags/v0.3.0 \
-  | tar -xz --strip-components=1 -C "$tmp"
-rm -rf .agents/skills && cp -r "$tmp/.agents/skills" .agents/skills
-cp "$tmp/.agents/AGENTS.md" .agents/AGENTS.md
-cp "$tmp/.agents/loka-brain/LOKA.md" "$tmp/.agents/loka-brain/schema.md" .agents/loka-brain/
+tmp=$(mktemp -d) && \
+curl -fsSL -o "$tmp/loka.tgz" https://codeload.github.com/Budtender3000/loka-master/tar.gz/refs/tags/v0.3.0 && \
+mkdir "$tmp/src" && tar -xzf "$tmp/loka.tgz" --strip-components=1 -C "$tmp/src" && \
+mkdir -p .agents/skills .agents/loka-brain && \
+for s in "$tmp"/src/.agents/skills/*/; do
+  [ -d "$s" ] || continue
+  n=$(basename "$s")
+  rm -rf ".agents/skills/$n" && cp -r "$s" ".agents/skills/$n"
+done && \
+cp "$tmp/src/.agents/AGENTS.md" .agents/AGENTS.md && \
+cp "$tmp/src/.agents/loka-brain/LOKA.md" "$tmp/src/.agents/loka-brain/schema.md" .agents/loka-brain/
 rm -rf "$tmp"
 ```
 
-Never overwrite artifacts in the domain folders. `index.md` is regenerated with `loka index`.
+Host skills with the same name as a LOKA skill are overwritten; all other host skills are preserved. Never overwrite artifacts in the domain folders. `index.md` is regenerated with `loka index`.
 
 ### Not supported
 
