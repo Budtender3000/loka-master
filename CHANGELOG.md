@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-29
+
+### Added
+- **Repository Visual Assets:** Added vector wordmarks (`assets/loka-wordmark-512.svg`, `assets/loka-wordmark-512-light.svg`) and icon (`assets/loka-icon-512.svg`) with dark/light mode responsive `<picture>` header in `README.md` (`fd2be6e`).
+
+### Changed
+- **Non-Destructive Embedded Update:** Updated the embedded installation update snippet in `README.md` to iterate and update only LOKA framework skills without deleting host skills, added directory checks, and documented install overwrite behavior for `.agents/` (`8b068e0`).
+- **Release Tag Pinning:** Pinned embedded installation and update snippet archive download URLs in `README.md` to release tags (`260bd95`).
+
 ## [0.3.0] - 2026-09-19
 
 ### Added
